@@ -1,0 +1,15 @@
+CHANGES IN VERSION 1.0
+----------------------
+
+USER VISIBLE CHANGES
+
+    o Initial release of the ASSET package.
+
+BUG FIXES
+
+    o None.
+
+PLANS
+
+    o The next release will have new features for h.traits and h.types.
+

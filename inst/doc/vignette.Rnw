@@ -1,0 +1,131 @@
+%\VignetteIndexEntry{ASSET Vignette}
+%\VignettePackage{ASSET}
+%\VigetteDepends{ASSET}
+
+\documentclass[a4paper]{article}
+
+
+\begin{document}
+
+\title{ASSET(Association analysis for SubSETs) Package}
+\maketitle
+
+\section*{Introduction}
+The ASSET package consists of two main functions: (1) h.traits and (2) h.types. The function h.traits
+is suitable for conducting meta-analysis of possibly different traits when summary level data are available from individual
+studies. The function allows for correlation among different studies/traits, which, for example, may arise due to shared subjects across studies.
+This function can also be used to conduct "meta-analysis" across multiple correlated traits on the same individuals by appropriately specifying the correlation
+matrix for the multivariate trait. Input arguments to this function are vectors/matrices of the estimated log-odds ratios, standard errors and
+number of cases and controls for each SNP and study. 
+The function h.types is suitable for analysis of case-control studies when cases consist of distinct disease subtypes. This
+function assumes individual level data are available. The main input argument for h.types is a data frame containing the SNP variables,
+response variable and covariates for all subjects.
+
+
+<<start>>=
+library(ASSET)
+@
+
+\section*{Examples of h.traits}
+
+Get the path to the data.
+<<data file>>=
+datafile <- system.file("sampleData", "vdata.rda", package="ASSET")
+@
+
+
+Load the data frames. There are 4 data frames, data1 - data4 for the 4 independent studies.
+Each study has the SNPs SNP1-SNP3 genotyped, and information on each subject's age and
+case-control status.
+Each SNP is coded as the number of copies of the minor allele or NA for missing genotypes.
+<<load data>>=
+load(datafile)
+data1[1:5, ]
+
+SNPs    <- paste("SNP", 1:3, sep="")
+nSNP    <- length(SNPs)
+studies <- paste("STUDY", 1:4, sep="") 
+nStudy  <- length(studies)
+@
+
+Let us determine the number of non-missing cases and controls for each SNP and study.
+<<ncase ncontrol>>=
+case    <- matrix(data=NA, nrow=nSNP, ncol=nStudy) 
+control <- matrix(data=NA, nrow=nSNP, ncol=nStudy) 
+
+for (i in 1:nStudy) {
+  data <- eval(parse(text=paste("data", i, sep="")))
+  caseVec <- data[, "CC"] == 1
+  controlVec <- !caseVec
+  for (j in 1:nSNP) {
+    temp <- !is.na(data[, SNPs[j]])
+    case[j, i] <- sum(caseVec & temp, na.rm=TRUE)
+    control[j, i] <- sum(controlVec & temp, na.rm=TRUE)
+  }
+}
+case
+control
+@
+
+Run a logistic regression for each SNP and study
+<<log reg>>=
+beta  <- matrix(data=NA, nrow=nSNP, ncol=nStudy) 
+sigma <- matrix(data=NA, nrow=nSNP, ncol=nStudy) 
+for (i in 1:nStudy) {
+  data <- eval(parse(text=paste("data", i, sep="")))
+  for (j in 1:nSNP) {
+    data[, "SNP"] <- data[, SNPs[j]]
+    fit <- glm(CC ~ AGE + SNP, data=data, family=binomial())
+    coef <- summary(fit)$coefficients
+    beta[j, i] <- coef["SNP", 1]
+    sigma[j, i] <- coef["SNP", 2]
+  }
+}
+beta
+sigma
+
+@
+
+Call the h.traits function. Since the studies are independent, we do not need to specify the
+cor option.
+<<h.traits>>=
+res <- h.traits(SNPs, studies, beta, sigma, case, control, meta=TRUE)
+@
+
+Compute a summary table. Notice that in the Subset.2sided results, the first 2 SNPs have missing
+values for OR.2, CI.low.2, and CI.high.2 since the estimated betas were all positive for these SNPs.
+<<summary table>>=
+h.summary(res)
+@
+
+Intead of searching over all possible subsets, let us define our own subset function
+to determine which nsubsets to search over. We will only consider subsets where the first m
+traits are in the subset (m = 1, 2, ...). The DLM p-value will also be computed using only
+these subsets.
+<<subset function>>=
+sub.def <- function(logicalVec) {
+  sum <- sum(logicalVec)  
+  ret <- all(logicalVec[1:sum])
+  ret
+}
+@
+
+Call the h.traits function with the zmax.args pval.args options defined
+<<h.traits 2>>=
+res <- h.traits(SNPs, studies, beta, sigma, case, control, meta=TRUE, 
+         zmax.args=list(sub.def=sub.def), pval.args=list(sub.def=sub.def))
+@
+
+<<summary table 2>>=
+h.summary(res)
+@
+
+
+\section*{Session Information}
+<<sessionInfo>>=
+sessionInfo()
+@ 
+
+\end{document}
+
+
