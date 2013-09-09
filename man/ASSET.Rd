@@ -27,6 +27,6 @@ subset searches.
 }
 \author{Samsiddhi Bhattacharjee, Nilanjan Chatterjee and William Wheeler <wheelerb@imsweb.com>}
 \keyword{package}
-\references{ Bhattacharjee S, Chatterjee N and others. A subset-based approach improves power and interpretation for combined-analysis of genetic association studies of heterogeneous traits. Am J Hum Genet, 2012, 90(5):821-35 \cr
+\references{Samsiddhi Bhattacharjee, Preetha Rajaraman, Kevin B. Jacobs, William A. Wheeler, Beatrice S. Melin, Patricia Hartge, GliomaScan Consortium, Meredith Yeager, Charles C. Chung, Stephen J. Chanock, Nilanjan Chatterjee. A subset-based approach improves power and interpretation for combined-analysis of genetic association studies of heterogeneous traits. Am J Hum Genet, 2012, 90(5):821-35 \cr
 }
 
