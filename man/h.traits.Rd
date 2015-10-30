@@ -6,9 +6,10 @@
 Performs one-sided or two-sided subset-based meta-analysis of  heteregeneous studies/traits.
 }
 \usage{
-h.traits(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl, 
+h.traits(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncntl=NULL, 
   cor=NULL, cor.numr=FALSE, search=NULL, side=2, meta=FALSE, 
-  zmax.args=NULL, meth.pval=c("DLM","IS","B"), pval.args=NULL)
+  zmax.args=NULL, pval.args=NULL, p.bound=1, 
+  NSAMP=5000, NSAMP0=50000)
 }
 \arguments{
   \item{snp.vars}{A character vector giving the SNP names to be analyzed. No default.}
@@ -17,10 +18,14 @@ h.traits(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl,
   \item{beta.hat}{A matrix of dimension length(\code{snp.vars}) by (\code{k}) (or a vector of length \code{k} when 1 SNP is passed). Each row gives the coefficients obtained
   from the analysis of that SNP across the \code{k} studies/traits. No default.}
   \item{sigma.hat}{A vector or matrix of same dimension as beta.hat, giving the corresponding standard errors. No default.}
-  \item{ncase}{The number of cases in each of the \code{k} studies. This can be same for each SNP, in which case \code{ncase} is a vector of length \code{k}.
-  Alternatively if the number of non-missing cases analyzed for each SNP is known, \code{ncase} can be a length(\code{snp.vars}) by (\code{k}) matrix. No default.}
-  \item{ncntl}{Same as \code{ncase} (above) for controls. No default.}
-  \item{cor}{Either a \code{k} by \code{k} matrix of inter-study correlations or a list containing three case/control overlap matrices (for
+  \item{ncase}{The number of cases in each of the \code{k} studies. This can be same for each SNP, 
+   in which case \code{ncase} is a vector of length \code{k}.
+  Alternatively if the number of non-missing cases analyzed for each SNP is known, then
+        \code{ncase} can be a length(\code{snp.vars}) by (\code{k}) matrix. 
+ If NULL, then \code{ncase} will be set to \code{1/sigma.hat^2}.
+ The default is NULL.}
+  \item{ncntl}{Same as \code{ncase} (above) for controls. The default is NULL.}
+  \item{cor}{Either a \code{k} by \code{k} matrix of inter-study phenotypic correlations or a list containing three case/control overlap matrices (for
 case-control studies)
   named \code{N11}, \code{N00} and \code{N10}. See details. Default is NULL, so that studies are assumed to be independent.
 The rows and columns of all matrices  needs to be in the same order as \code{traits.lab} and columns 
@@ -31,18 +36,33 @@ The default is FALSE. In either case, the correlation is accounted for variance 
 automatically returns both one-sided and two-sided subset searches. 
   Default is NULL.}
   \item{side}{Either 1 or 2. For two-tailed tests (where absolute values of Z-scores are maximized), \code{side} should be 2. For one-tailed tests, 
-  \code{side} should be 1 (positive tail is assumed). Default is 2. The option is ignored when search=2 since the two-sided subset search is automatically a two-sided
-test.}
+  \code{side} should be 1 (positive tail is assumed). Default is 2. 
+The option is ignored when \code{search}=2 since the two-sided subset search is automatically a two-tailed test.}
   \item{meta}{Logical. When specified as TRUE, standard fixed effect meta-analysis results are returned together with results from subset-based meta-analysis. 
 The Default is FALSE.}
   \item{zmax.args}{Optional arguments to be passed to \code{\link{z.max}} as a named list. This option can be useful if the user wants to
 restrict subset searches in some structured way, for example, incorporating some ordering constraints.}
  \item{pval.args}{Optional arguments  to be
-  passed to \code{\link{p.dlm}} or \code{\link{p.tube}} as a named list. This option can be useful if the user wants to
+  passed to \code{\link{p.dlm}} as a named list. This option can be useful if the user wants to
 restrict subset searches in some structured way, for example, incorporating some ordering constraints.}
- \item{meth.pval}{The method of p-value computation. Currently the options are DLM (Discrete Local
-  Maximum), IS(Exact Importance Sampling) and B (Bonferroni) with the default option being DLM. The IS method is currently computationally
-feasible for analysis of at most k=10 studies/traits}
+% \item{meth.pval}{The method of p-value computation. 
+%                 Currently the only option is DLM (Discrete Local Maximum). See Details.
+%, IS(Exact Importance Sampling) and B (Bonferroni) with the default option being DLM. 
+%The IS method is currently computationally feasible for analysis of at most k=10 studies/traits}
+  \item{p.bound}{P-value threshold for screening studies based on marginal association before
+   performing subset search. 
+  Default is 1, that is all studies are included in the subset search. 
+  The p-value for the overall procedure accounts for this pre-screening step. See details.}
+ % \item{add.enrich}{TRUE or FALSE to retrieve some of the lost information using binomial enrichment. Default is FALSE.}
+ % \item{cond.all}{TRUE or FALSE to indicate whether p-values are computed conditional on all z-scores
+ %   being above or below the screening cutoff during pre-screening.
+ %   That is condition on Z1>c, Z2>c, Z3<c, Z4<c etc, or to only condition on those retained for subset search. 
+ %   i.e condition on Z1>c and Z2>c and search among subsets of those defined by cond.all=FALSE. The default is TRUE.}
+  \item{NSAMP}{Number of samples from a truncated multivariate normal distribution used to compute the DLM p-value.
+              The default is 5000.}
+  \item{NSAMP0}{Number of samples from truncated multivariate normal distribution used to calculate
+  the probability of the truncation region in DLM p-value calculation. For 1-sided subset search
+  this is ignored unless \code{p.bound} < 1. The default is 50000. See details.}
 }
 \value{
    A list containing 3 main component lists named:
@@ -90,9 +110,30 @@ may involve shared controls accross studies, ie non-zero off-diagonal elements o
 
 The output standard errors are approximate (based on inverting p-values) and are used for constructing confidence
 intervals in \code{\link{h.summary}} and \code{\link{h.forestPlot}}.
+
+Currently ASSET calculates p-values by a stochastic approximation to the DLM formula as described in
+Bhattacharjee et al. (In Preparation). The method works by simulating truncated multivariate normal
+variates by importance sampling to estimate the probability term appearing in the DLM formula.
+Since version 2.0.0, the previous \code{meth.pval}="DLM" option to calculate upper bound 
+p-values (as in Bhattacharjee et al. 2012) has been dropped as the current stochastic 
+approximation is expected to be more accurate in all cases although slightly slower.
+The new p-value method also enables pre-screening of traits by the \code{p.bound} argument.
+
+Specifying a p-value upper bound through \code{p.bound}, helps in speeding up the code when the number of traits or subtypes is relatively large. For example if \code{p.bound=0.25} is 
+chosen, on an average (under the null) only a quarter of the traits will be included in subset search, 
+  allowing more traits to be analyzed in a computationally feasible manner. Note that the studies being 
+maximized over will vary from SNP to SNP, and appropriate multiple-testing adjustment is done internally to account for this pre-selection. 
+% A caveat is that for \code{p.dlm} when this
+% option is set to a non-default value, i.e. \code{p.bound<1} and studies are not independent, final p-values will be stochastic. This is because function 
+%\code{pmvnorm} in package \code{mvtnorm} based on a stochastic algorithm is used in estimating the probability of the p-value based pre-selection.
+The arguments \code{NSAMP} and \code{NSAMP0} give the number of importance sampling replicates to be generated. 
+Either of these can be increased to achieve more accuracy at the cost of computational speed or vice versa.
 }
 
 \references{Samsiddhi Bhattacharjee, Preetha Rajaraman, Kevin B. Jacobs, William A. Wheeler, Beatrice S. Melin, Patricia  Hartge, GliomaScan Consortium, Meredith Yeager, Charles C. Chung, Stephen J. Chanock, Nilanjan Chatterjee. A subset-based  approach improves power and interpretation for combined-analysis of genetic association studies of heterogeneous traits. Am  J Hum Genet, 2012, 90(5):821-35 \cr
+
+Bhattacharjee et al. Pre-screening and Meta-analysis based on Subset: A Fast and Powerful Approach to Pleitropic 
+ Analysis Across a Large Number of Traits (In Preparation)
 }
 
 \seealso{ \code{\link{h.summary}}, \code{\link{h.forestPlot}} }
@@ -117,9 +158,9 @@ intervals in \code{\link{h.summary}} and \code{\link{h.forestPlot}}.
  ncntl      <- diag(N00)
 
  # Now let us call h.traits on these summary data. 
- res <- h.traits(snps, traits.lab, beta.hat, sigma.hat, ncase, ncntl, cor=cor, 
-                 cor.numr=FALSE, search=NULL, side=2, meta=TRUE, 
-                 zmax.args=NULL, meth.pval="DLM")
+ res <- h.traits(snps, traits.lab, beta.hat, sigma.hat, ncase=ncase, 
+                 ncntl=ncntl, cor=cor, cor.numr=FALSE, search=NULL,
+                 side=2, meta=TRUE, zmax.args=NULL)
  
  h.summary(res)
 

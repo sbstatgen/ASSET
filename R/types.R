@@ -1,12 +1,18 @@
 # Nov 01 2011  Pass the subset option in h.types to types.wald
 # Nov 03 2011  Allow types.lab to be NULL
+# Apr 24 2014  Change sub.def1 function definition
 
 h.types <- function(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, subset=NULL, method=NULL, side=2
-, logit=FALSE, test.type = "Score", zmax.args = NULL, meth.pval = c("DLM", "IS", "B"), pval.args = NULL)
+, logit=FALSE, test.type = "Score", zmax.args = NULL, pval.args = NULL,
+  p.bound = 1, NSAMP=5000, NSAMP0=50000)
 
 {
+    meth.pval  <- "DLM"
+    add.enrich <- FALSE
+    cond.all   <- TRUE
+
     if (!is.data.frame(dat)) stop("ERROR: dat must be a data frame")
-    if ((is.null(side)) || (!(side %in% 1:2))) stop("ERROR: side must be 1 or 2")
+    if ((is.null(side)) || (!(side %in% c(-1, 1, 2)))) stop("ERROR: side must be -1, 1 or 2")
     if ((is.null(meth.pval)) || (!(meth.pval %in% c("DLM", "IS", "B")))) stop("ERROR: meth.pval must be DLM, IS, or B")
     if ((is.null(logit)) || (!(logit %in% 0:1))) stop("ERROR: logit must be TRUE or FALSE")
     if ((is.null(test.type)) || (!(test.type %in% c("Score", "Wald")))) stop("ERROR: test.type must be Score or Wald")
@@ -15,6 +21,8 @@ h.types <- function(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, 
       temp <- names(pval.args)
       if (is.null(temp)) stop("ERROR: pval.args must be a named list")
     }
+
+	if(p.bound>1 || p.bound <0) stop("Expected a p-value bound between 0 and 1")
 
     # Check that the variables exist
     checkData.vars(dat, response.var)
@@ -76,77 +84,202 @@ h.types <- function(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, 
 	SC <- (is.null(pool) || pool==FALSE)
 	CC <- (is.null(pool) || pool==TRUE)
 
-	logit.res <- CC.res <- SC.res <- NULL
-	if(logit)
-	{ 
-		res <- try(types.wald(sub=rep(TRUE, k), snp.vars=snp.vars, dat=dat, response.var=response.var, adj.vars=adj.vars
+     logit.all <- CC.all <- SC.all <- list()
+     NULL.pheno <- rep(FALSE, k)
+
+     for (ii in 1:length(snp.vars)) { 
+	  logit.res <- CC.res <- SC.res <- NULL
+       SNP <- snp.vars[ii]
+	  if(logit)
+	  { 
+		res <- try(types.wald(sub=rep(TRUE, k), snp.vars=SNP, dat=dat, response.var=response.var, adj.vars=adj.vars
 					, types.lab=types.lab, cntl.lab=cntl.lab, subset=subset, pool=FALSE, side=side))
 		if(inherits(res, "try-error")) warning(paste("Error in Overall Logistic:", res))
 		else logit.res <- res
-	}
+	  }
 
-	if(SC)
-	{ 
+	  if(SC)
+	  { 
 		if(is.null(pval.args) || is.null(pval.args$search)) pval.args <- c(pval.args, list(search = 0))
 		else pval.args$search <- 0
 
-		res <- try(h.types0(k, dat, response.var=response.var, snp.vars=snp.vars, adj.vars=adj.vars, types.lab=types.lab
+		res <- try(h.types0(k, dat, response.var=response.var, snp.vars=SNP, adj.vars=adj.vars, types.lab=types.lab
 						, cntl.lab=cntl.lab, subset=subset, pool=FALSE, meth = meth
 							, side=side, meta.C = TRUE, zmax.args=zmax.args
-							, meth.pval=meth.pval, pval.args=pval.args))
+							, meth.pval=meth.pval, pval.args=pval.args, p.bound=p.bound, add.enrich=add.enrich,
+                                       cond.all=cond.all, NSAMP=NSAMP, NSAMP0=NSAMP0))
 		
 		if(inherits(res, "try-error")) warning(paste("Error in Subset-search (Case-Control):", res))
 		else SC.res <- res
 		
-	}
-	if(CC)
-	{ 
+	  }
+	  if(CC)
+	  { 
 		if(is.null(pval.args) || is.null(pval.args$search)) pval.args <- c(pval.args, list(search = 0))
 		else pval.args$search <- 0
 		
-		res <- h.types0(k, dat, response.var=response.var, snp.vars=snp.vars, adj.vars=adj.vars, types.lab=types.lab
+		res <- h.types0(k, dat, response.var=response.var, snp.vars=SNP, adj.vars=adj.vars, types.lab=types.lab
 						  , cntl.lab=cntl.lab, subset=subset, pool=TRUE, meth = meth
 						, side=side, meta.C = TRUE, zmax.args=zmax.args
-						, meth.pval=meth.pval, pval.args=pval.args)  
+						, meth.pval=meth.pval, pval.args=pval.args, p.bound=p.bound, add.enrich=add.enrich,
+                                  cond.all=cond.all, NSAMP=NSAMP, NSAMP0=NSAMP0)
 
 		if(inherits(res, "try-error")) warning(paste("Error in Subset-search (Case-Control):", res))
 		else CC.res <- res
-	}
+	  }
+      
+       # Combine results
+       logit.all <- htypes.combine(logit.all, logit.res, 1, SNP, k) 
+       SC.all    <- htypes.combine(SC.all, SC.res, 2, SNP, k)
+       CC.all    <- htypes.combine(CC.all, CC.res, 2, SNP, k)
 
-	#ret <- list(Overall.Logistic = logit.res, Subset.Case.Control = SC.res, Subset.Case.Complement = CC.res)
-    ret <- list(Overall.Logistic=logit.res, Subset.Case.Control=SC.res, Subset.Case.Complement=CC.res,
+     }    
+
+	ret <- list(Overall.Logistic=logit.all, Subset.Case.Control=SC.all, Subset.Case.Complement=CC.all,
                 data=dat, response.var=response.var, adj.vars=adj.vars, types.lab=types.lab,
                 cntl.lab=cntl.lab, subset=subset, method=method, side=side, test.type=test.type,
                 zmax.args=zmax.args, meth.pval=meth.pval, pval.args=pval.args, logit=logit,
-                snp.vars=snp.vars, which="h.types")
+                snp.vars=snp.vars, which="h.types", cond.all=cond.all, NSAMP=NSAMP, NSAMP0=NSAMP0)
 
 	ret
 }
 
+# Function to combine results
+htypes.combine <- function(all, new, which, SNP, k) {
 
+  if (is.null(new)) {
+    x        <- NA
+    names(x) <- SNP
+    z <- zopt <- beta <- sd <- pval <- x
+    pheno <- matrix(data=FALSE, nrow=1, ncol=k)
+    rownames(pheno) <- SNP 
+  } else {
+    z     <- new[["z", exact=TRUE]]
+    zopt  <- new[["zopt", exact=TRUE]]
+    beta  <- new[["beta", exact=TRUE]]
+    sd    <- new[["sd", exact=TRUE]]
+    pval  <- new[["pval", exact=TRUE]]
+    pheno <- new[["pheno", exact=TRUE]]
+  }
+  
+  if (which == 1) {
+    all$z    <- c(all$z, z)
+    all$beta <- c(all$beta, beta)
+    all$sd   <- c(all$sd, sd)
+    all$pval <- c(all$pval, pval)
+  } else {
+    all$pval  <- c(all$pval, pval)
+    all$beta  <- c(all$beta, beta)
+    all$sd    <- c(all$sd, sd)
+    all$zopt  <- c(all$zopt, zopt)
+    all$pheno <- rbind(all$pheno, pheno)
+  } 
+ 
+  all
+
+} # END: htypes.combine
 
 h.types0 <- function(k, dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, pool, meth = "score"
-, subset=NULL, side=2, meta.C = FALSE, zmax.args=NULL, meth.pval="DLM", pval.args=NULL)
+, subset=NULL, side=2, meta.C = FALSE, zmax.args=NULL, meth.pval="DLM", pval.args=NULL, p.bound=1, 
+   add.enrich=FALSE, cond.all=TRUE, NSAMP=5000, NSAMP0=5e4)
 {
 	
+	if(k == 0) return(list(pval = 1, pheno = NULL, beta = NA, sd = NA, zopt=NA, subsetCount=0))
+
 	k <- length(types.lab)
 	nsnp <- length(snp.vars)
 	N <- nrow(dat)
 		
-	pheno <- NULL
+	pheno <- matrix(data=FALSE, nrow=1, ncol=k)
+     rownames(pheno) <- snp.vars
+	colnames(pheno) <- types.lab
 
 	pval <- rep(NA, nsnp) ; names(pval) <- snp.vars
 	par <- pval ; sigma <- pval
+     zopt <- pval
+
+	z0 <- pvals0 <- rep(NA, k)
+	for(t in 1:k)
+	{
+		meta.def <- switch(meth, Score=types.score, Wald=types.wald)
+		res <- meta.def(sub=((1:k)==t), snp.vars=snp.vars[1], dat=dat, response.var=response.var, 
+              adj.vars=adj.vars, types.lab=types.lab, cntl.lab=cntl.lab, subset=subset, pool=pool)
+		z0[t] <- res$z
+		pvals0[t] <- if(abs(side) == 1) pnorm(abs(z0[t]), lower.tail=FALSE) else 2 * pnorm(abs(z0[t]), lower.tail=FALSE)
+	}
 	
+	z.sub <- (pvals0 <= p.bound) * sign(z0)
+	k1 <- sum(z.sub != 0)
+
+	if(k1 == 0) return(list(pval=pval, pheno=pheno, beta=par, sd=sigma, zopt=zopt, subsetCount=0))
+
+     # Determine if the user passed in subset functions
+     ###############################################
+     sub.def  <- zmax.args[["sub.def", exact=TRUE]] 
+     sub.args <- zmax.args[["sub.args", exact=TRUE]]
+     psub.def  <- pval.args[["sub.def", exact=TRUE]] 
+     psub.args <- pval.args[["sub.args", exact=TRUE]]
+     ###############################################
+
+     # For zmax
+     if (!is.null(sub.def)) {
+	  sub.def1 <- function(x, op)
+	  {
+           z.sub <- op$z.sub
+		x0    <- (z.sub != 0) & x
+		ret   <- sub.def(x0, op)
+		ret
+	  }
+	  if(k1!=k)
+  	  {
+           zmax.args$sub.def  <- sub.def1
+           zmax.args$sub.args <- c(sub.args, list(z.sub=z.sub))
+	  }
+     }
+
+     # For p.dlm or p.tube
+     if (!is.null(psub.def)) {
+	  psub.def1 <- function(x, op)
+	  {
+           x0          <- (op$z.sub != 0)
+           pos         <- which(x0)
+		x0[pos[!x]] <- FALSE
+		ret         <- psub.def(x0, op)
+		ret
+	  }
+	  if(k1!=k)
+	  {
+           pval.args$sub.def  <- psub.def1
+           pval.args$sub.args <- c(psub.args, list(z.sub=z.sub))
+	  }
+     }
+
+
+	if(k1 != k && !is.null(pval.args$sizes))
+	{
+		sizes <- pval.args$sizes
+		labs <- rep(1:length(sizes), sizes)
+		sizes1 <- NULL
+		for(i in 1:length(sizes))
+		{
+			num.skip <- sum((z.sub == 0) & labs == i)
+			sizes1 <- c(sizes1, c(sizes[i] - num.skip))
+		}
+	pval.args$sizes <- sizes1
+	}
+
+	if(is.null(zmax.args) || is.null(zmax.args$z.sub)) zmax.args <- c(zmax.args, list(z.sub = z.sub))
+	if(is.null(pval.args) || is.null(pval.args$p.bound)) pval.args <- c(pval.args, list(p.bound = p.bound))
 	
 	meta.def <- switch(meth, Score=types.score, Wald=types.wald)
+
 	res <- do.call(z.max, c(list(k=k, snp.vars=snp.vars, side=side, meta.def = meta.def
 				, meta.args = list(dat=dat, response.var=response.var, adj.vars = adj.vars
 				, types.lab=types.lab, cntl.lab=cntl.lab, subset=subset, pool=pool)), zmax.args))
 
 	zopt <- as.double(res$opt.z)
 	pheno <- matrix(as.logical(res$opt.s), ncol=k, byrow=FALSE)
-    subsetCount <- res$subsetCount
+	subsetCount <- res$subsetCount
 	
 	names(zopt) <- snp.vars
 	dimnames(pheno)[[1]] <- as.list(snp.vars)
@@ -173,31 +306,51 @@ h.types0 <- function(k, dat, response.var, snp.vars, adj.vars, types.lab, cntl.l
 
 	if(meth.pval == "DLM")
 	{
-		if(is.null(pval.args) || !("cor.def" %in% names(pval.args))) pval.args <- c(pval.args, list(cor.def=NULL))
-		if(!("cor.args" %in% names(pval.args))) pval.args <- c(pval.args, list(cor.args = list(ncase=ncase, ncntl=ncntl, pool=pool)))
-		
-		pval <- do.call(p.dlm, c(list(t.vec=abs(zopt), k=k, side = side), pval.args))
+		#if(is.null(pval.args) || !("cor.def" %in% names(pval.args))) pval.args <- c(pval.args, list(cor.def=NULL))
+	     #if(!("cor.args" %in% names(pval.args))) pval.args <- c(pval.args, list(cor.args = list(ncase=matrix(ncase[(z.sub != 0), ], ncol=nsnp), ncntl=ncntl, pool=pool)))
+		#pval <- do.call(p.dlm, c(list(t.vec=abs(zopt), z.sub=z.sub, side=abs(side), cond.all=cond.all, NSAMP=NSAMP, NSAMP0=NSAMP0), pval.args))
+          cor.args <- pval.args[["cor.args", exact=TRUE]]
+          if (is.null(cor.args))  cor.args <- list(ncase=matrix(ncase[(z.sub != 0), ], ncol=nsnp), ncntl=ncntl, pool=pool)
+
+          pval <- p.dlm(abs(zopt), z.sub, 0, abs(side), cor.def=pval.args[["cor.def", exact=TRUE]], 
+                  cor.args=cor.args, sizes=pval.args[["sizes", exact=TRUE]], p.bound=p.bound, 
+                  sub.def=pval.args[["sub.def", exact=TRUE]], sub.args=pval.args[["sub.args", exact=TRUE]],
+                  NSAMP=NSAMP, NSAMP0=NSAMP0)
+
 	}
-		
-	if(meth.pval == "IS") pval <- do.call(p.tube, c(list(t.vec=abs(zopt), k=k
-									, side = side, ncase=ncase, ncntl=ncntl
+
+	if(meth.pval == "Boot")
+	{
+		p.boot(t0=abs(zopt), z.sub=z.sub, search=0, side = abs(side), ncase0=ncase, ncntl0=ncntl, pool=pool, p.bound=p.bound,
+                  cond.all=cond.all, NSAMP0=NSAMP0)
+	}
+
+
+	if(meth.pval == "IS") pval <- do.call(p.tube, c(list(t.vec=abs(zopt), k=k1
+									, side = abs(side), ncase=matrix(ncase[(z.sub != 0), ], ncol=nsnp), ncntl=ncntl
 									, pool=pool), pval.args))
 	
-	if(meth.pval == "B") pval <- p.bon(abs(zopt), subsetCount, search = 0, side = side)
+	if(meth.pval == "B") pval <- p.bon(abs(zopt), subsetCount, search = 0, side = abs(side))
 	
 	names(pval) <- snp.vars
 	
 	par <- sigma <- NULL
 
 #	Estimate Parameters
-	if(TRUE)
+	if(any(pheno))
 	{
 		res <- types.wald(sub=pheno, snp.vars=snp.vars, dat=dat, response.var=response.var
 							, adj.vars=adj.vars, types.lab=types.lab, cntl.lab=cntl.lab, pool=pool, side = side)
 		par <- res$beta
 		names(par) <- snp.vars
 		if(side == 2) sigma <- abs(par)/qnorm(pval/2, lower.tail=FALSE, log.p=FALSE)
-		else sigma <- par/qnorm(pval, lower.tail=FALSE, log.p=FALSE)
+		else sigma <- abs(par)/qnorm(pval, lower.tail=(side == -1), log.p=FALSE)
+	}
+	if(add.enrich && p.bound < 1)
+	{
+		pval1 <- calcP1(p.bound, k1, k, search=0, side=side, rmat=diag(1, k), sizes=sizes)
+		pval.c  <- pchisq(-2 * (log(pval)+ log(pval1)), df=4, lower.tail=FALSE)
+		pval <- pval.c
 	}
 	list(pval=pval, beta=par, sd=sigma, zopt = zopt, pheno=pheno)
 }
@@ -305,7 +458,6 @@ types.score <- function(sub, snp.vars, dat, response.var, adj.vars, types.lab, c
 score.compute <- function(d.vec, p.vec, g.vec, xmat, nmiss, N, nsnp, p, xcov=NULL)
 {
 	q.vec <- (1 - p.vec)
-	
 	tmp.mat <- matrix(g.vec * nmiss * (d.vec - p.vec), N, nsnp, byrow=FALSE)
 	numr0 <- apply(tmp.mat, 2, sum, na.rm=TRUE)
 	tmp.mat <- matrix(nmiss * g.vec * g.vec * p.vec * q.vec, N, nsnp, byrow=FALSE)
@@ -423,11 +575,14 @@ types.wald <- function(sub, snp.vars, dat, response.var, adj.vars, types.lab, cn
 					{
 						mat <- table(g.vec, 1 - dx1, useNA="no") ; geno <- (0:2)
 						res <- try(glm(mat ~ geno, family=binomial(link="logit")))
-					} else res <- try(glm(as.formula(fmla), data=ndat, subset = subset01, family=binomial(link="logit")))
+					} else {
+                                          res <- try(glm(as.formula(fmla), data=ndat, subset = subset01, family=binomial(link="logit")))
+                                   }
 
-					if(inherits(res, "try-error") || (!res$converged)) warning("error in glm")
-					else 
-					{
+					if(inherits(res, "try-error") || (!res$converged)) 
+                                   {
+                                          warning("error in glm")
+                                   } else {
 						coef <- summary(res)$coef
 						pos <- pmatch(if(geno.flag) "geno" else snp, rownames(coef))
 						if(!is.na(pos)) ret <- coef[pos, 1:2]
@@ -445,9 +600,10 @@ types.wald <- function(sub, snp.vars, dat, response.var, adj.vars, types.lab, cn
 	
 	z <- ifelse(is.na(sd) | is.nan(sd) | sd <= 0, 0, beta/sd)
 
-	if(side == 2) pval <- 2 * pnorm(abs(beta/sd), lower.tail=FALSE)
-	else pval <- pnorm(beta/sd, lower.tail=FALSE)
-
+	if(side == 2) pval <- 2 * pnorm(abs(z), lower.tail=FALSE)
+	if(side == 1) pval <- pnorm(z, lower.tail=FALSE)
+	if(side == -1) pval <- pnorm(z, lower.tail=TRUE)
+	
 	list(z=z, beta=beta, sd=sd, pval=pval)
 }
 
@@ -495,6 +651,9 @@ types.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
     zmax.args    <- rlist$zmax.args
     meth.pval    <- rlist$meth.pval
     pval.args    <- rlist$pval.args 
+    cond.all     <- rlist$cond.all
+    NSAMP        <- rlist$NSAMP
+    NSAMP0       <- rlist$NSAMP0
 
 	k <- length(types.lab)
 	nsub <- matrix(FALSE, k, k)
@@ -524,7 +683,7 @@ types.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
 
       ret <- h.types(rlist$data, response.var, snp.var, adj.vars, types.lab, cntl.lab, subset=subset,
               method=method, side=side, logit=logit, test.type=test.type, zmax.args=zmax.args, 
-              meth.pval=meth.pval, pval.args=pval.args)
+              pval.args=pval.args, NSAMP=NSAMP, NSAMP0=NSAMP0)
       if (!ov.flag) ov <- ret[["Overall.Logistic", exact=TRUE]]
       if (!cc.flag) cc <- ret[["Subset.Case.Control", exact=TRUE]]
       if (!cp.flag) cp <- ret[["Subset.Case.Complement", exact=TRUE]]

@@ -7,12 +7,12 @@ Function to obtain Discrete Local Maxima based estimates of p-values for z-score
 with possible restrictions and weights. Should not be called directly. See details.
 }
 \usage{
-p.dlm(t.vec, k, search, side, cor.def=NULL, cor.args=NULL, sizes=rep(1, k), 
-      sub.def=NULL, sub.args=NULL, wt.def=NULL, wt.args=NULL)
+p.dlm(t.vec, z.sub, search, side, cor.def=NULL, cor.args=NULL, sizes=NULL, p.bound=1,
+      sub.def=NULL, sub.args=NULL, NSAMP=5000, NSAMP0=5e4)
 }
 \arguments{
   \item{t.vec}{Numeric vector of (positive) points for which to calculate p-values, i.e. general observed Z-max values. No default.}
-  \item{k}{Integer (currently less than 30). The number of studies (traits) or subtypes being analyzed. No default.}  
+  \item{z.sub}{Integer vector of the studies (traits) or subtypes being analyzed. No default.}  
   \item{search}{0, 1 or 2. Search option, with 0 indicating subtype analysis, 1 and 2 denote one-sided and two-sided subset-search. No default.}
   \item{side}{Either 1 or 2. For two-tailed tests (where absolute values of Z-scores are maximized), \code{side} should be 2. For one-tailed tests, 
   \code{side} should be 1 (positive tail assumed). No default. Ignored when search is 2.}
@@ -25,22 +25,42 @@ p.dlm(t.vec, k, search, side, cor.def=NULL, cor.args=NULL, sizes=rep(1, k),
   If \code{cor.def} is NULL, then \code{ncase} and \code{ncntl} must be specified in this list.
   }
   \item{sizes}{Sizes of equivalence classes of traits. By default, no two traits or studies are equivalent. This argument is for internal use.}
+  \item{p.bound}{Maximum p-value above which studies are not considered in the maximization. Default is 1. See details.}
   \item{sub.def}{A function to restrict subsets, e.g., order restrictions in subtype analysis. Should accept a subset (a logical vector of size k) as
   its first argument and should return TRUE if the subset satisfies restrictions and FALSE otherwise. Default is NULL implying all (2^k - 1) subsets
   are considered in the maximum.}
   \item{sub.args}{Other arguments to be passed to \code{sub.def} as list. Default is NULL (i.e. none).}
-  \item{wt.def}{A function that gives the weight of one subset with respect to another. Should accept two subsets as the first two arguments and return
-  a single positive weight. Default NULL. Currently this option is not implemented and the argument is ignored.}
-  \item{wt.args}{Other arguments to be passed to \code{wt.def} as a list . Default NULL. Currently ignored.}
+  %\item{wt.def}{A function that gives the weight of one subset with respect to another. Should accept two subsets as the first two arguments and return
+  %a single positive weight. Default NULL. Currently this option is not implemented and the argument is ignored.}
+  %\item{wt.args}{Other arguments to be passed to \code{wt.def} as a list . Default NULL. Currently ignored.}
+  %\item{cond.all}{TRUE or FALSE to condition on all z-scores being above or below the screening cutoff during pre-screening.
+  %  That is condition on Z1>c, Z2>c, Z3<c, Z4<c etc, or to only condition on those retained for subset search. 
+  %  i.e condition on Z1>c and Z2>c and search among subsets of those defined by cond.all=FALSE. The default is TRUE.}
+  \item{NSAMP}{Number of samples from a truncated multivariate normal distribution used to compute the DLM p-value.
+              The default is 5000.}
+  \item{NSAMP0}{Number of samples from truncated multivariate normal distribution used to calculate
+  the probability of the truncation region in DLM p-value calculation. For 1-sided subset search
+  this is ignored unless \code{p.bound} < 1. The default is 50000. }
   }
 \value{
 A numeric vector of estimated p-values.
 }
 \details{ 
-The function is vectorized to handle blocks of SNPs at a time. Currently weight options are ignored.
+The function is vectorized to handle blocks of SNPs at a time. 
 This is a helper function that is called internally by \code{\link{h.traits}} and \code{\link{h.types}} 
-and should not be called directly. The arguments of this function that have defaults, can be customized using
-the argument \code{pval.args} in \code{\link{h.traits}} and \code{\link{h.types}}.
+and should not be called directly. 
+The arguments of this function that have defaults, e.g. \code{sub.def} can be customized using
+the argument \code{pval.args} in \code{\link{h.traits}} and \code{\link{h.types}}. 
+Specifying a p-value upper bound through \code{p.bound}, helps
+in speeding up the code when the number of traits or subtypes is relatively large. 
+For example if \code{p.bound=0.25} is chosen, on an average (under the null)
+only a quarter of the traits will be maximized, allowing more traits to be analyzed in a computationally feasible manner. 
+%Note that for \code{p.dlm} when this
+%option is set to a non-default value, i.e. \code{p.bound<1} and studies are not independent, final p-values will be stochastic. 
+%This is because function \code{pmvnorm} in package \code{mvtnorm} based on a stochastic algorithm is used in estimating
+% the probability of the p-value based pre-selection.
+Note that currently the DLM p-values are stochastic in nature (based on importance sampling). To get
+replicable results \code{\link[base]{set.seed}} can be used.
 }
 
 \examples{
@@ -59,7 +79,7 @@ the argument \code{pval.args} in \code{\link{h.traits}} and \code{\link{h.types}
   }
 
   # Subset definition
-  sub.def <- function(logicalVec) {
+  sub.def <- function(logicalVec, args) {
     # Only allow the cummulative subsets:
     # TRUE FALSE FALSE FALSE ...
     # TRUE TRUE FALSE FALSE ...
@@ -73,8 +93,9 @@ the argument \code{pval.args} in \code{\link{h.traits}} and \code{\link{h.types}
 
   k     <- 5
   t.vec <- 1:k
+  z.sub <- rep(1, k)
 
-  p.dlm(t.vec, k, 1, 2, cor.def=cor.def, sub.def=sub.def,
+  p.dlm(t.vec, z.sub, 1, 2, cor.def=cor.def, sub.def=sub.def,
          cor.args=list(ncase=rep(1000, k), ncntl=rep(1000,k)))
 
 }

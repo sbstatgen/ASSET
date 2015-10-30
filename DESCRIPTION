@@ -1,14 +1,13 @@
 Package: ASSET
 Title: An R package for subset-based association analysis of
         heterogeneous traits and subtypes
-Version: 1.9.0
-Date: 2013-08-26
-Author: Samsiddhi Bhattacharjee, Nilanjan Chatterjee and William
-        Wheeler
-Description: An R package for subset-based analysis of heterogeneous
-        traits and subtypes
+Version: 1.9.1
+Date: 2015-06-01
+Author: Samsiddhi Bhattacharjee, Nilanjan Chatterjee and William Wheeler
+Description: An R package for subset-based analysis of heterogeneous traits and subtypes.
 Maintainer: William Wheeler <WheelerB@imsweb.com>
-Depends: MASS, msm, rmeta
+Depends: MASS, msm, rmeta, mvtnorm, tmvnsim
 Suggests: RUnit, BiocGenerics
 License: GPL-2 + file LICENSE
-biocViews: Software
+biocViews: Software, Bioinformatics
+Packaged: 2013-11-02 05:48:56 UTC; biocbuild

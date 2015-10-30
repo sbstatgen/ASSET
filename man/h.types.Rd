@@ -8,7 +8,8 @@ Subset-based analysis of case-control studies with heterogeneous disease subtype
 \usage{
 h.types(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, 
         subset=NULL, method=NULL, side=2, logit=FALSE, test.type="Score", 
-        zmax.args=NULL, meth.pval=c("DLM", "IS", "B"), pval.args=NULL)
+        zmax.args=NULL, pval.args=NULL, p.bound = 1, 
+        NSAMP=5000, NSAMP0=50000)
 }
 \arguments{
   \item{dat}{A data frame containing individual level data for phenotype (disease status/subtype information), covariate data and
@@ -31,12 +32,26 @@ h.types(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab,
   \item{test.type}{A character string indicating the type of tests to be performed. The current options are "Score" and "Wald". The default is "Score."}
  \item{zmax.args}{Optional arguments to be passed to \code{\link{z.max}} as a named list. This option can be useful if the user wants to
    restrict subset searches in some structured way, for example, incorporating ordering constraints.}
-\item{meth.pval}{A character string indicating the method of evaluating the p-value. Currently the options are "DLM" (Discrete Local
-  Maximum), "IS" (Exact Importance Sampling) and "B" (Bonferroni) with the default option being DLM. The IS method is currently computationally
-feasible for analysis of at most k=10 studies/traits}
+%\item{meth.pval}{A character string indicating the method of evaluating the p-value. Currently the only option is "DLM" (Discrete Local
+%  Maximum)
+%"IS" (Exact Importance Sampling) and "B" (Bonferroni) with the default option being DLM. 
+%The IS method is currently computationally feasible for analysis of at most k=10 studies/traits}
  \item{pval.args}{Optional arguments  to be
-  passed to \code{\link{p.dlm}} or \code{\link{p.tube}} as a named list. This option can be useful if the user wants to
+  passed to \code{\link{p.dlm}} as a named list. This option can be useful if the user wants to
 restrict subset searches in some structured way, for example, incorporating ordering constraints.}
+  \item{p.bound}{P-value threshold for screening studies based on marginal association before
+  performing subset search. Default is 1, that is all studies are included in the subset search.
+  The p-value for the overall procedure accounts for this pre-screening step. See details.}
+ % \item{add.enrich}{TRUE or FALSE to retrieve some of the lost information using binomial enrichment. Default is FALSE.}
+ % \item{cond.all}{TRUE or FALSE to indicate whether p-values are computed conditional on all z-scores being above or
+ % below the screening cutoff during pre-screening.
+ %   That is condition on Z1>c, Z2>c, Z3<c, Z4<c etc, or to only condition on those retained for subset search. 
+ %   i.e condition on Z1>c and Z2>c and search among subsets of those defined by cond.all=FALSE. The default is TRUE.}
+  \item{NSAMP}{Number of samples from a truncated multivariate normal distribution used to compute the DLM p-value.
+              The default is 5000.}
+  \item{NSAMP0}{Number of samples from truncated multivariate normal distribution used to calculate
+  the probability of the truncation region in DLM p-value calculation. For 1-sided subset search
+  this is ignored unless \code{p.bound} < 1. The default is 50000. See details.}
 }
 \value{
    A list containing 3 component lists named:
@@ -64,6 +79,26 @@ the cases of the selected disease subtypes and the whole complement set of subje
 The output standard errors are approximate (based on inverting DLM pvalues) and are used for constructing confidence intervals 
 in \code{\link{h.summary}} and \code{\link{h.forestPlot}}. For a particular SNP, if any of the genotypes are missing, then those
 subjects will be removed from the analysis for that SNP.
+
+Currently ASSET calculates p-values by a stochastic approximation to the DLM formula as described in
+Bhattacharjee et al. (In Preparation). The method works by simulating truncated multivariate normal
+variates by importance sampling to estimate the probability term appearing in the DLM formula.
+Since version 2.0.0, the previous \code{meth.pval}="DLM" option to calculate upper bound 
+p-values (as in Bhattacharjee et al. 2012) has been dropped as the current stochastic 
+approximation is expected to be more accurate in all cases although slightly slower.
+The new p-value method also enables pre-screening of traits by the \code{p.bound} argument.
+
+Specifying a p-value upper bound through \code{p.bound}, helps in speeding up the code when the number of traits or subtypes is relatively large. For example if \code{p.bound=0.25} is 
+chosen, on an average (under the null) only a quarter of the traits will be used for subset search, 
+ allowing more traits to be analyzed in a computationally feasible manner. 
+%Note that the studies being maximized over will vary from SNP to SNP, and appropriate multiple-testing adjustment is done internally
+% to account for this pre-selection. 
+%A caveat is that for \code{p.dlm} when thisoption is set to a non-default value, i.e. \code{p.bound<1} 
+%and studies are not independent, final p-values will be stochastic. 
+%This is because function \code{pmvnorm} in package \code{mvtnorm} based on a stochastic algorithm is used in estimating the
+% probability of the p-value based pre-selection.
+The arguments \code{NSAMP} and \code{NSAMP0} give the number of importance sampling replicates to be generated. 
+Either of these can be increased to achieve more accuracy at the cost of computational speed or vice versa.
 }
 
 \seealso{ \code{\link{h.summary}}, \code{\link{h.forestPlot}} }
@@ -84,7 +119,7 @@ subjects will be removed from the analysis for that SNP.
  # SUBTYPE_0 will denote the controls
  res <- h.types(data, "TYPE", snps, adj.vars, types, "SUBTYPE_0", subset=NULL, 
         method="case-control", side=2, logit=FALSE, test.type="Score", 
-        zmax.args=NULL, meth.pval="DLM", pval.args=NULL)
+        zmax.args=NULL, pval.args=NULL)
 
  
  h.summary(res)
