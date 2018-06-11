@@ -91,7 +91,7 @@ sigma
 Call the h.traits function. Since the studies are independent, we do not need to specify the
 cor option.
 <<h.traits>>=
-res <- h.traits(SNPs, studies, beta, sigma, ncase=case, ncntl=control, meta=TRUE)
+res <- h.traits(SNPs, studies, beta, sigma, case, control, meta=TRUE)
 @
 
 Compute a summary table. Notice that in the Subset.2sided results, the first 2 SNPs have missing
@@ -105,7 +105,7 @@ to determine which nsubsets to search over. We will only consider subsets where 
 traits are in the subset (m = 1, 2, ...). The DLM p-value will also be computed using only
 these subsets.
 <<subset function>>=
-sub.def <- function(logicalVec, args) {
+sub.def <- function(logicalVec) {
   sum <- sum(logicalVec)  
   ret <- all(logicalVec[1:sum])
   ret
@@ -114,7 +114,7 @@ sub.def <- function(logicalVec, args) {
 
 Call the h.traits function with the zmax.args pval.args options defined
 <<h.traits 2>>=
-res <- h.traits(SNPs, studies, beta, sigma, ncase=case, ncntl=control, meta=TRUE, 
+res <- h.traits(SNPs, studies, beta, sigma, case, control, meta=TRUE, 
          zmax.args=list(sub.def=sub.def), pval.args=list(sub.def=sub.def))
 @
 
@@ -155,7 +155,7 @@ types.lab <- paste("TYPE_", 1:3, sep="")
 Call the h.types function with option logit=TRUE to also run the overall 
 logistic regression for each SNP.
 <<h.types>>=
-ret <- h.types(dat=data, response.var="TYPE", snp.vars=snp.vars, adj.vars=adj.vars, types.lab=types.lab, cntl.lab="CONTROL",
+ret <- h.types(data, "TYPE", snp.vars, adj.vars, types.lab, "CONTROL",
                logit=TRUE)
 @
 

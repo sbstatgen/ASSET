@@ -1,21 +1,13 @@
 
-h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncntl=NULL, cor=NULL
-	, cor.numr=FALSE, search=NULL, side=2, meta=FALSE, zmax.args=NULL, pval.args=NULL, p.bound=1, 
-      NSAMP=5000, NSAMP0=50000)
+h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl, cor=NULL
+	, cor.numr=FALSE, search=NULL, side=2, meta=FALSE, zmax.args=NULL
+	, meth.pval=c("DLM", "IS", "B"), pval.args=NULL)
 {
-
-    meth.pval  <- "DLM"
-    cond.all   <- TRUE
-    add.enrich <- FALSE
-
-    if (is.null(ncase)) ncase <- 1/(sigma.hat^2)
-    if (is.null(ncntl)) ncntl <- 1/(sigma.hat^2)
-
     if (!is.null(search)) {
       if (!(search %in% 1:2)) stop("ERROR: search must be NULL, 1 or 2")
     }
-    if ((is.null(side)) || (!(side %in% c(-1, 1, 2)))) stop("ERROR: side must be -1, 1 or 2")
-    if ((is.null(meth.pval)) || (!(meth.pval %in% c("DLM", "IS", "B", "Boot")))) stop("ERROR: meth.pval must be DLM, IS, or B")
+    if ((is.null(side)) || (!(side %in% 1:2))) stop("ERROR: side must be 1 or 2")
+    if ((is.null(meth.pval)) || (!(meth.pval %in% c("DLM", "IS", "B")))) stop("ERROR: meth.pval must be DLM, IS, or B")
     if ((is.null(meta)) || (!(meta %in% 0:1))) stop("ERROR: meta must be TRUE or FALSE")
     if ((is.null(cor.numr)) || (!(cor.numr %in% 0:1))) stop("ERROR: cor.numr must be TRUE or FALSE")
     if (!is.null(pval.args)) {
@@ -32,9 +24,6 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncnt
 	k         <- length(traits.lab)
 	meth.pval <- meth.pval[1]
 	nsnp      <- length(snp.vars)
-
-	if(p.bound>1 || p.bound <0) stop("Expected a p-value bound between 0 and 1")	
-
 	beta.hat  <- matrix(beta.hat, ncol=k, byrow=FALSE)
 	sigma.hat <- matrix(sigma.hat, ncol=k, byrow=FALSE)
 	
@@ -82,10 +71,13 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncnt
 	
 	pval <- pval1 <- pval2 <- rep(NA, nsnp)
 	names(pval) <- names(pval1) <- names(pval2) <- snp.vars
+
 	beta <- beta1 <- beta2 <- rep(NA, nsnp)
 	names(beta) <- names(beta1) <- names(beta2) <- snp.vars
+
 	sd <- sd1 <- sd2 <- rep(NA, nsnp)
 	names(sd) <- names(sd1) <- names(sd2) <- snp.vars
+	
 	pheno <- pheno1 <- pheno2 <- matrix(FALSE, nsnp, k)
 	colnames(pheno) <- colnames(pheno1) <- colnames(pheno2) <- traits.lab
 	rownames(pheno) <- rownames(pheno1) <- rownames(pheno2) <- snp.vars
@@ -98,7 +90,6 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncnt
 	OS <- (is.null(search) || search==1)
 	TS <- (is.null(search) || search==2)
 	meta.res <- sub1.res <- sub2.res <- NULL
-
 	if(meta)
 	{ 
 		for(j in 1:nsnp)
@@ -109,10 +100,9 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncnt
 			{
 				nsub <- sum(sub)
 				rmat <- matrix(cor[sub, sub], nsub, nsub)
-				res <- try(traits.meta(sub, snp.vars[j], beta.hat[j, ], sigma.hat[j,]
+				res <- traits.meta(sub, snp.vars[j], beta.hat[j, ], sigma.hat[j,]
 							, ncase[jj, ], ncntl[jj, ], rmat = cor, side = side
-							, cor.numr = cor.numr, wt.sigma = TRUE), silent=TRUE)
-                     if ("try-error" %in% class(res)) next
+							, cor.numr = cor.numr, wt.sigma = TRUE)
 				pval[j] <- res$pval
 				beta[j] <- res$beta
 				sd[j] <- res$sd
@@ -130,16 +120,6 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncnt
 
 	if(OS)
 	{ 	
-          pval <- pval1 <- pval2 <- rep(NA, nsnp)
-	     names(pval) <- names(pval1) <- names(pval2) <- snp.vars
-	     beta <- beta1 <- beta2 <- rep(NA, nsnp)
-	     names(beta) <- names(beta1) <- names(beta2) <- snp.vars
-	     sd <- sd1 <- sd2 <- rep(NA, nsnp)
-	     names(sd) <- names(sd1) <- names(sd2) <- snp.vars
-	     pheno <- pheno1 <- pheno2 <- matrix(FALSE, nsnp, k)
-	     colnames(pheno) <- colnames(pheno1) <- colnames(pheno2) <- traits.lab
-	     rownames(pheno) <- rownames(pheno1) <- rownames(pheno2) <- snp.vars
-
 		if(is.null(pval.args) || is.null(pval.args$search)) pval.args <- c(pval.args, list(search = 1))
 		else pval.args$search <- 1
 
@@ -151,21 +131,17 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncnt
 			{
 				nsub <- sum(sub)
 				rmat <- matrix(cor[sub, sub], nsub, nsub)
-				res <- try(h.traits1(nsub, beta.hat[j, sub], sigma.hat[j, sub], ncase[jj, sub], ncntl[jj, sub]
-							, rmat = rmat, cor.numr=cor.numr, search=1, side=side, zmax.args=zmax.args
-						 	, meth.pval=meth.pval, pval.args=pval.args, p.bound=p.bound, add.enrich=add.enrich,
-                                       cond.all=cond.all, NSAMP=NSAMP, NSAMP0=NSAMP0), silent=TRUE)
-                     if ("try-error" %in% class(res)) next
-                     res.pheno <- res[["pheno", exact=TRUE]]
-                     PFLAG     <- !is.null(res.pheno)
+				res <- h.traits1(nsub, beta.hat[j, sub], sigma.hat[j, sub], ncase[jj, sub], ncntl[jj, sub]
+							, rmat = rmat, cor.numr=cor.numr, side = side, zmax.args=zmax.args
+						 	, meth.pval=meth.pval, pval.args=pval.args)
 
 				pval[j]       <- res$pval
-				if (PFLAG) pheno[j, sub] <- res.pheno
+				pheno[j, sub] <- res$pheno
 				beta[j]       <- res$beta
 				sd[j]         <- res$sd
 
 				# Compute new meta-analysis standard error
-				if (PFLAG) sd.meta[j] <- meta.se(cor, sigma.hat[j, ], subset=res.pheno)
+				sd.meta[j] <- meta.se(cor, sigma.hat[j, ], subset=res$pheno)
 
 			}
 			
@@ -173,19 +149,8 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncnt
 		sub1.res <- list(pval=pval, beta=beta, sd=sd, pheno=pheno, sd.meta=sd.meta)
 	}
 
-	t00 <- proc.time()
 	if(TS)
 	{ 
-           pval <- pval1 <- pval2 <- rep(NA, nsnp)
-	     names(pval) <- names(pval1) <- names(pval2) <- snp.vars
-	     beta <- beta1 <- beta2 <- rep(NA, nsnp)
-	     names(beta) <- names(beta1) <- names(beta2) <- snp.vars
-	     sd <- sd1 <- sd2 <- rep(NA, nsnp)
-	     names(sd) <- names(sd1) <- names(sd2) <- snp.vars
-	     pheno <- pheno1 <- pheno2 <- matrix(FALSE, nsnp, k)
-	     colnames(pheno) <- colnames(pheno1) <- colnames(pheno2) <- traits.lab
-	     rownames(pheno) <- rownames(pheno1) <- rownames(pheno2) <- snp.vars
-
 		if(is.null(pval.args) || is.null(pval.args$search)) pval.args <- c(pval.args, list(search = 2))
 		else pval.args$search <- 2
 
@@ -196,32 +161,26 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncnt
 			sub <- !(is.na(beta.hat[j, ]) | is.na(sigma.hat[j, ]) | is.na(ncase[jj, ]) | is.na(ncntl[jj, ]))
 			if(any(sub))
 			{
-			    nsub <- sum(sub)
-			    rmat <- matrix(cor[sub, sub], nsub, nsub)
+				nsub <- sum(sub)
+				rmat <- matrix(cor[sub, sub], nsub, nsub)
 
-			    res <- try(h.traits2(nsub, beta.hat[j, sub], sigma.hat[j, sub], ncase[jj, sub], ncntl[jj, sub], 
+				res <- h.traits2(nsub, beta.hat[j, sub], sigma.hat[j, sub], ncase[jj, sub], ncntl[jj, sub], 
                                  rmat=rmat, cor.numr=cor.numr, side = side, zmax.args=zmax.args, 
-                                 meth.pval=meth.pval, pval.args=pval.args, p.bound=p.bound, add.enrich=add.enrich,
-                                 cond.all=cond.all, NSAMP=NSAMP, NSAMP0=NSAMP0), silent=TRUE)
-                    if ("try-error" %in% class(res)) next 
-                    res.pheno.1 <- res[["pheno.1", exact=TRUE]]
-                    PFLAG1      <- !is.null(res.pheno.1)
-                    res.pheno.2 <- res[["pheno.2", exact=TRUE]]
-                    PFLAG2      <- !is.null(res.pheno.2)
+                                 meth.pval=meth.pval, pval.args=pval.args)
 
-                    pval[j]        <- res$pval
+                pval[j]        <- res$pval
 			    pval1[j]       <- res$pval.1
-		     	    pval2[j]       <- res$pval.2
-			    if (PFLAG1) pheno1[j, sub] <- res.pheno.1
-			    if (PFLAG2) pheno2[j, sub] <- res.pheno.2
+		     	pval2[j]       <- res$pval.2
+			    pheno1[j, sub] <- res$pheno.1
+			    pheno2[j, sub] <- res$pheno.2
 			    beta1[j]       <- res$beta.1
 			    beta2[j]       <- res$beta.2
 			    sd1[j]         <- res$sd.1
 			    sd2[j]         <- res$sd.2
 
-                  # Compute new meta-analysis standard error
-                  if (PFLAG1) sd1.meta[j] <- meta.se(cor, sigma.hat[j, ], subset=res.pheno.1)
-                  if (PFLAG2) sd2.meta[j] <- meta.se(cor, sigma.hat[j, ], subset=res.pheno.2)
+                # Compute new meta-analysis standard error
+                sd1.meta[j] <- meta.se(cor, sigma.hat[j, ], subset=res$pheno.1)
+                sd2.meta[j] <- meta.se(cor, sigma.hat[j, ], subset=res$pheno.2)
 
 			}
 			
@@ -233,94 +192,25 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase=NULL, ncnt
                          sd.1.meta=sd1.meta, sd.2.meta=sd2.meta)
 	}
 
+	#ret <- list(Meta=meta.res, Subset.1sided=sub1.res, Subset.2sided=sub2.res)
     ret <- list(Meta=meta.res, Subset.1sided=sub1.res, Subset.2sided=sub2.res,
            snp.vars=snp.vars, traits.lab=traits.lab, beta.hat=beta.hat, sigma.hat=sigma.hat,
            ncase=ncase, ncntl=ncntl, cor=cor, cor.numr=cor.numr, search=search,
            side=side, meta=meta, zmax.args=zmax.args, meth.pval=meth.pval,
-           pval.args=pval.args, which="h.traits", cond.all=cond.all, NSAMP=NSAMP, NSAMP0=NSAMP0)
+           pval.args=pval.args, which="h.traits")
  
 	ret
 }
 
 
-h.traits1 <- function(k, beta.hat, sigma.hat, ncase, ncntl, rmat, cor.numr, search=1, side=2, zmax.args=NULL, 
-                meth.pval="DLM", pval.args=NULL, p.bound=1, add.enrich=FALSE,
-                cond.all=TRUE, NSAMP=5000, NSAMP0=5e4)
+h.traits1 <- function(k, beta.hat, sigma.hat, ncase, ncntl, rmat, cor.numr, side=2, zmax.args=NULL, meth.pval="DLM", pval.args=NULL)
 {
-#print("BEGIN h.traits1")
 	if(k == 0) return(list(pval = 1, pheno = NULL, beta = NA, sd = NA, subsetCount=0))
-	if (length(rmat) == 1) dim(rmat) <- c(1, 1)
-
-	z0 <- beta.hat/sigma.hat
-	pvals0 <- if(search < 2 && abs(side) == 1) pnorm(abs(z0), lower.tail=FALSE) else (2 * pnorm(abs(z0), lower.tail=FALSE))
-
-	z.sub <- (pvals0 <= p.bound) * sign(z0)
-	k1 <- sum(z.sub != 0)
-	if(k1 == 0) return(list(pval = 1, pheno = NULL, beta = NA, sd = NA, subsetCount=0))
- 
-     # Determine if the user passed in subset functions
-     ###############################################
-     sub.def   <- zmax.args[["sub.def", exact=TRUE]] 
-     sub.args  <- zmax.args[["sub.args", exact=TRUE]]
-     psub.def  <- pval.args[["sub.def", exact=TRUE]] 
-     psub.args <- pval.args[["sub.args", exact=TRUE]]
-     ###############################################
-
-     # For zmax
-     if (!is.null(sub.def)) {
-	  sub.def1 <- function(x, op)
-	  {
-           z.sub <- op$z.sub
-		x0    <- (z.sub!=0) & x
-		ret   <- sub.def(x0, op)
-		ret
-	  }
-	  if(k1!=k)
-	  {
-           zmax.args$sub.def  <- sub.def1
-           zmax.args$sub.args <- c(sub.args, list(z.sub=z.sub))
-	  }
-     }
-    
-     # For p.dlm or p.tube
-     if (!is.null(psub.def)) {
-	  psub.def1 <- function(x, op)
-	  {
-           x0          <- (op$z.sub != 0)
-           pos         <- which(x0)
-		x0[pos[!x]] <- FALSE
-		ret         <- psub.def(x0, op)
-		ret
-	  }
-	  if(k1 != k)
-	  {
-           pval.args$sub.def  <- psub.def1
-           pval.args$sub.args <- c(psub.args, list(z.sub=z.sub))
-	  }
-     }
-
-
-	if((k1 != k) && !is.null(pval.args$sizes))
-	{
-		sizes <- pval.args$sizes
-		labs <- rep(1:length(sizes), sizes)
-		sizes1 <- NULL
-		for(i in 1:length(sizes))
-		{
-			num.skip <- sum((z.sub==0) & labs == i)
-			sizes1 <- c(sizes1, c(sizes[i] - num.skip))
-		}
-		pval.args$sizes <- sizes1
-	}
-
-	if(is.null(zmax.args) || is.null(zmax.args$z.sub)) zmax.args <- c(zmax.args, list(z.sub = z.sub))
-	if(is.null(pval.args) || is.null(pval.args$p.bound)) pval.args <- c(pval.args, list(p.bound = p.bound))
-
+	
 ##### NOTE: meta.def is set to traits.meta ######
-#print("BEGIN z.max")
 	res <- do.call(z.max, c(list(k, 1, side=side, meta.def=traits.meta, meta.args=list(beta.hat=beta.hat, sigma.hat=sigma.hat
-				 , ncase=ncase, ncntl=ncntl, rmat=rmat, side=side, cor.numr=cor.numr, wt.sigma=FALSE)), zmax.args))
-#print("END z.max")
+				 , ncase=ncase, ncntl=ncntl, rmat=rmat, cor.numr=cor.numr, wt.sigma=FALSE)), zmax.args))
+
 	zopt <- as.double(res$opt.z)
 	pheno <- as.logical(res$opt.s)
 	subsetCount <- res$subsetCount
@@ -329,57 +219,30 @@ h.traits1 <- function(k, beta.hat, sigma.hat, ncase, ncntl, rmat, cor.numr, sear
 	if(meth.pval == "DLM")
 	{
 		if(is.null(pval.args) || !("cor.def" %in% names(pval.args))) pval.args <- c(pval.args, list(cor.def=NULL))
-		if(!("cor.args" %in% names(pval.args))) {
-             #pval.args <- c(pval.args, 
-             #  list(cor.args=list(ncase=ncase[(z.sub!=0)], ncntl=ncntl[(z.sub != 0)], rmat=rmat[(z.sub != 0), (z.sub != 0)], cor.numr=cor.numr)))
-             pval.args <- c(pval.args, list(cor.args=list(ncase=ncase, ncntl=ncntl, rmat=rmat, cor.numr=cor.numr)))
-           }
-		#pval <- do.call(p.dlm, c(list(t.vec=abs(zopt), z.sub=z.sub, search=search, side = abs(side)), pval.args))      
-#print("BEGIN p.dlm")    
-           pval <- p.dlm(abs(zopt), z.sub, search, abs(side), cor.def=pval.args[["cor.def", exact=TRUE]], 
-                  cor.args=pval.args[["cor.args", exact=TRUE]], sizes=pval.args[["sizes", exact=TRUE]], p.bound=p.bound, 
-                  sub.def=pval.args[["sub.def", exact=TRUE]], sub.args=pval.args[["sub.args", exact=TRUE]],
-                  NSAMP=NSAMP, NSAMP0=NSAMP0)
-#print("END p.dlm")
+		if(!("cor.args" %in% names(pval.args))) pval.args <- c(pval.args, list(cor.args = list(ncase=ncase, ncntl=ncntl, rmat=rmat, cor.numr=cor.numr)))
+
+		pval <- do.call(p.dlm, c(list(t.vec=abs(zopt), k=k, side = side), pval.args))
 	}
 	if(meth.pval == "IS")
 	{
-		pval <- do.call(p.tube, c(list(t.vec=abs(zopt), k=k1, side = abs(side), ncase=ncase
-					, ncntl=ncntl, rmat=rmat, cor.numr=cor.numr, cond.all=cond.all, NSAMP=NSAMP, NSAMP0=NSAMP0), pval.args))
+		pval <- do.call(p.tube, c(list(t.vec=abs(zopt), k=k, side = side, ncase=ncase
+								, ncntl=ncntl, rmat=rmat, cor.numr=cor.numr), pval.args))
 	}
-	if(meth.pval == "Boot")
-	{
-		pval <- p.boot(t0=abs(zopt), z.sub=z.sub, search=search, side=abs(side), ncase0=ncase, ncntl0=ncntl, rmat0=rmat, 
-                   cor.numr=cor.numr, p.bound=p.bound, cond.all=cond.all, NSAMP0=NSAMP0)
-	}
-	if(meth.pval=="B") pval <- p.bon(abs(zopt), subsetCount, search = 1, side = abs(side))
-
+	if(meth.pval=="B") pval <- p.bon(abs(zopt), subsetCount, search = 1, side = side)
+    
 
 	beta <- sd <- NA
 		
-       if (any(pheno)) 
-       {
-
-	  res <- traits.meta(pheno, 1, beta.hat, sigma.hat, ncase, ncntl, rmat=rmat, side=side, cor.numr=cor.numr, wt.sigma=TRUE)
-
-	  beta <- res$beta
-	  if(side == 2) sd <- abs(beta)/qnorm(pval/2, lower.tail=FALSE, log.p = FALSE)
-	  else sd <- abs(beta/qnorm(pval, lower.tail= (side == -1), log.p = FALSE))
-       }
-	if(add.enrich && p.bound < 1)
-	{
-		pval1 <- calcP1(p.bound, k1, k, search=search, side=side, rmat=rmat, sizes=sizes)
-		pval.c  <- pchisq(-2 * (log(pval)+ log(pval1)), df=4, lower.tail=FALSE)
-		pval <- pval.c
-	}
-#print("END h.traits1")
-	list(pval = pval, pheno = pheno, beta = beta, sd = sd, subsetCount=subsetCount)
+	res <- traits.meta(pheno, 1, beta.hat, sigma.hat, ncase, ncntl, rmat=rmat, wt.sigma=TRUE)
+	
+	beta <- res$beta
+	if(side == 2) sd <- abs(beta)/qnorm(pval/2, lower.tail=FALSE, log.p = FALSE)
+	else sd <- beta/qnorm(pval, lower.tail=FALSE, log.p = FALSE)
+	ret <- list(pval = pval, pheno = pheno, beta = beta, sd = sd, subsetCount=subsetCount)
 }
 
-h.traits2 <- function(k, beta.hat, sigma.hat, ncase, ncntl, rmat, cor.numr, side=2, zmax.args=NULL, meth.pval="DLM", 
-                      pval.args=NULL, p.bound=1, add.enrich=FALSE, cond.all=TRUE, NSAMP=5000, NSAMP0=5e4)
+h.traits2 <- function(k, beta.hat, sigma.hat, ncase, ncntl, rmat, cor.numr, side=2, zmax.args=NULL, meth.pval="DLM", pval.args=NULL)
 {
-#print("BEGIN h.traits2")
 	sub1 <- which(beta.hat >= 0)
 	sub2 <- which(beta.hat < 0)
 
@@ -404,15 +267,13 @@ h.traits2 <- function(k, beta.hat, sigma.hat, ncase, ncntl, rmat, cor.numr, side
 
 	res1 <- h.traits1(k1, beta.hat=beta.hat[sub1], sigma.hat=sigma.hat[sub1], ncase=ncase[sub1]
 					  , ncntl=ncntl[sub1], rmat=rmat[sub1, sub1]
-					  , cor.numr=cor.numr, search=2, side=1, zmax.args=zmax.args
-					  , meth.pval=meth.pval, pval.args=pval.args1, p.bound=p.bound, add.enrich=add.enrich,
-                              cond.all=cond.all, NSAMP=NSAMP, NSAMP0=NSAMP0)
+					  , cor.numr=cor.numr, side=side, zmax.args=zmax.args
+					  , meth.pval=meth.pval, pval.args=pval.args1)
 
 	res2 <- h.traits1(k2, beta.hat=beta.hat[sub2], sigma.hat=sigma.hat[sub2], ncase=ncase[sub2]
 					  , ncntl=ncntl[sub2], rmat[sub2, sub2]
-					  , cor.numr=cor.numr, search=2, side=-1, zmax.args=zmax.args
-					  , meth.pval=meth.pval, pval.args=pval.args2, p.bound=p.bound, add.enrich=add.enrich,
-                               cond.all=cond.all, NSAMP=NSAMP, NSAMP0=NSAMP0)
+					  , cor.numr=cor.numr, side=side, zmax.args=zmax.args
+					  , meth.pval=meth.pval, pval.args=pval.args2)
 
 	#zopt <- if ( (!is.finite(res1$pval)) || (!is.finite(res2$pval)) || 
     #             (res1$pval <= 0) || (res2$pval <= 0) ) NA else -2 * (log(res1$pval) + log(res2$pval))		
@@ -421,27 +282,26 @@ h.traits2 <- function(k, beta.hat, sigma.hat, ncase, ncntl, rmat, cor.numr, side
     subsetCount <- res1$subsetCount + res2$subsetCount
 
 
-       if(k1 > 0 && k2 > 0) 
+	if(k1 > 0 && k2 > 0) 
 	{ 
-		pval <- pchisq(zopt, df = 4, lower.tail = FALSE)
+		if(meth.pval != "B") pval <- pchisq(zopt, df = 4, lower.tail = FALSE)
+		#if(meth.pval == "B") pval <- pchisq(zopt, df = 4, lower.tail = FALSE) * ((2^k1 - 1) * (2^k2 - 1))
+        if(meth.pval == "B") pval <- pchisq(zopt, df = 4, lower.tail = FALSE) * subsetCount
 	}
 	if(k1 == 0 || k2 == 0 )
 	{
-		pval <- pchisq(zopt, df = 2, lower.tail = FALSE)
+		if(meth.pval != "B") pval <- pchisq(zopt, df = 2, lower.tail = FALSE)
+		#if(meth.pval == "B") pval <- pchisq(zopt, df = 2, lower.tail = FALSE) * ((2^k - 1))
+        if(meth.pval == "B") pval <- pchisq(zopt, df = 2, lower.tail = FALSE) * subsetCount
 	}
 
-	pheno1 <- rep(FALSE, k)
-      if (!is.null(res1$pheno)) pheno1[sub1] <- res1$pheno
-	pheno2 <- rep(FALSE, k)
-      if (!is.null(res2$pheno)) pheno2[sub2] <- res2$pheno
+	pheno1 <- rep(FALSE, k) ; pheno1[sub1] <- res1$pheno
+	pheno2 <- rep(FALSE, k) ; pheno2[sub2] <- res2$pheno
 	
 	ret <- list(pval = pval, pval.1=res1$pval, pval.2=res2$pval, pheno.1 = pheno1, pheno.2 = pheno2
 				, beta.1 = res1$beta, sd.1 = res1$sd, beta.2 = res2$beta, sd.2 = res2$sd)
-
-#print("END h.traits2")
-
 	ret
-}
+}	
 
 traits.meta <- function(sub, snp.vars, beta.hat, sigma.hat, ncase, ncntl, rmat, side=2, cor.numr=FALSE, wt.sigma=FALSE)
 {	
@@ -482,9 +342,9 @@ traits.meta <- function(sub, snp.vars, beta.hat, sigma.hat, ncase, ncntl, rmat, 
 		#z <- ifelse(is.na(denr) | is.nan(denr) | denr == 0, NA, numr/sqrt(denr))
         z <- ifelse(is.na(denr) | is.nan(denr), NA, numr/sqrt(denr))
 	}
-	if(side == 2) pval <- 2 * pnorm(abs(z), lower.tail=FALSE)
-	if(side == 1) pval <- pnorm(z, lower.tail=FALSE)
-	if(side == -1) pval <- pnorm(z, lower.tail=TRUE)
+	if(side == 2) pval <- 2 * pnorm(abs(numr/sqrt(denr)), lower.tail=FALSE)
+	else pval <- pnorm(numr/sqrt(denr), lower.tail=FALSE)
+
 	list(z = z, beta = beta, sd = sd, pval = pval)
 }
 
@@ -529,9 +389,6 @@ traits.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
     zmax.args  <- rlist$zmax.args
     meth.pval  <- rlist$meth.pval
     pval.args  <- rlist$pval.args 
-    cond.all   <- rlist$cond.all
-    NSAMP      <- rlist$NSAMP
-    NSAMP0     <- rlist$NSAMP0
 
 	k <- length(traits.lab)
 	nsub <- matrix(FALSE, k, k)
@@ -560,8 +417,8 @@ traits.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
       }
       ret <- h.traits(snp.var, traits.lab, beta.hat, sigma.hat, ncase, ncntl, 
                       cor=cor, cor.numr=cor.numr, search=search, side=side, 
-                      meta=meta, zmax.args=zmax.args, 
-                      pval.args=pval.args, NSAMP=NSAMP, NSAMP0=NSAMP0)
+                      meta=meta, zmax.args=zmax.args, meth.pval=meth.pval, 
+                      pval.args=pval.args)
 
       if (!ov.flag) ov <- ret[["Meta", exact=TRUE]]
       if (!cc.flag) cc <- ret[["Subset.1sided", exact=TRUE]]

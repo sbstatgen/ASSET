@@ -37,9 +37,9 @@ and estimate of regression coefficient(s) and confidence intervals associated wi
  ncntl      <- diag(N00)
 
  # Now let us call h.traits on these summary data. 
- res <- h.traits(snps, traits.lab, beta.hat, sigma.hat, ncase=ncase, 
-                 ncntl=ncntl, cor=cor, cor.numr=FALSE, search=NULL, 
-                 side=2, meta=TRUE, zmax.args=NULL)
+ res <- h.traits(snps, traits.lab, beta.hat, sigma.hat, ncase, ncntl, cor=cor, 
+                 cor.numr=FALSE, search=NULL, side=2, meta=TRUE, zmax.args=NULL, 
+                 meth.pval="DLM")
 
  h.forestPlot(res, "SNP_1", digits=3)
 
