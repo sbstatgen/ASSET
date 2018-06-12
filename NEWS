@@ -1,3 +1,16 @@
+CHANGES IN VERSION 1.98.0
+----------------------
+The stochastic p-value calculation with p-value screening appears to be unacceptably slow in many cases. 
+Reverting to older deterministic p-value calculation used till ASSET 1.8.0. P-value screening option 
+is not supported for now but may be included in future releases.
+
+
+CHANGES IN VERSION 1.10.0
+----------------------
+A new p-value screening option p.bound introduced and stochastic p-value calculation incorporated to allow
+p-value screening.
+
+
 CHANGES IN VERSION 1.0
 ----------------------
 
