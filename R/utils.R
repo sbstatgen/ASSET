@@ -11,38 +11,8 @@ myInv <- function(A)
 mySolve <- function(A, B)
 {
 	AinvB <- try(solve(A, B))
-	if (inherits(AinvB, "try-error")) AinvB <- ginv(A) %*% B
+	if (inherits(AinvB, "try-error")) AinvB <- ginv(A) %*% B 
 	AinvB
-}
-
-corr.logit <- function(x1, x2, ncase, ncntl, pool)
-{
-	k <- length(ncase)
-	if(pool == FALSE) {
-		n11 <- sum(ncase[x1 & x2])
-		n10 <- 0
-		n01 <- 0
-		n00 <- ncntl
-		n1 <- c(sum(ncase[x1]), sum(ncase[x2]))
-		n0 <- c(ncntl, ncntl)
-
-	} else {
-		n11 <- sum(ncase[x1 & x2])
-		n10 <- sum(ncase[x1 & !x2])
-		n01 <- sum(ncase[x2 & !x1])
-		n00 <- sum(ncase[!x1 & !x2]) + ncntl
-		n1 <- c(sum(ncase[x1]), sum(ncase[x2]))
-		n0 <- c(sum(ncase[!x1]) + ncntl, sum(ncase[!x2]) + ncntl)
-	}
-	
-	N <- n0 + n1
-	
-	neff <- (n0 * n1)/N
-	rneff <- sqrt(neff)
-	
-	rho <- ((n11 /(n1[1] * n1[2])) + (n00/(n0[1]*n0[2]))
-			 - (n10/(n1[1] * n0[2])) - (n01/(n0[1] * n1[2]))) * sqrt(neff[1] * neff[2])
-	rho
 }
 
 corr.mat.logit <- function(nmat11, nmat00, nmat10=NULL, nmat01=NULL)
@@ -80,20 +50,15 @@ findMiss.vars <- function(x, vars=NULL, miss=NA)
 } # END: findMiss.vars
 
 
-z.max <- function(k, snp.vars, side, meta.def, meta.args, th = NULL, z.sub=rep(1, k)
-			, sub.def = NULL, sub.args = NULL)
+z.max <- function(k, snp.vars, side, meta.def, meta.args, th = rep(-1, length(snp.vars))
+			, sub.def = NULL, sub.args = NULL, wt.def=NULL, wt.args=NULL)
 {
-     wt.def  <- NULL
-     wt.args <- NULL
-
 	nsnp <- length(snp.vars)
 	snp.sub <- 1:nsnp
 	
 	if(length(th) == 1) th = rep(th, nsnp)
-	if(is.null(th)) th <- rep(if(side == 2) -1 else (-Inf * side), nsnp)
 	if(length(th) != nsnp) stop("Expected one threshold or a threshold for each SNP")
-
-
+	
 	x <- rep(0, k)
 	opt.s <- matrix(FALSE, nsnp, k)
 	opt.s[, k] <- 1
@@ -104,21 +69,19 @@ z.max <- function(k, snp.vars, side, meta.def, meta.args, th = NULL, z.sub=rep(1
 	
 	i <- 1
 	ipos <- k
-	k1 <- sum(z.sub != 0)
-    	subsetCount <- 0
-	while(i <= ((2^k1) - 1))
+    subsetCount <- 0
+	while(i <= ((2^k) - 1))
 	{	
-		ipos <- max(which(x == 0 & (z.sub != 0)))
+		ipos <- max(which(x == 0))
 		x[ipos:k] <- 0
 		x[ipos] <- 1
 		set <- as.logical(x)
-		#if(!is.null(sub.def)) if(! do.call(sub.def, c(list(set), sub.args))){ i <- i + 1 ; next }
-           if (!is.null(sub.def)) {
-             if (!sub.def(set, sub.args)) { i <- i + 1 ; next }
-           }
-	     subsetCount <- subsetCount + 1
+
+		if(!is.null(sub.def)) if(! do.call(sub.def, c(list(set), sub.args))){ i <- i + 1 ; next }
+	    subsetCount <- subsetCount + 1
 #		sub <- which(set)
 		nsub <- sum(set)
+
 		ztmp <- do.call(meta.def, c(list(as.logical(set), snp.vars[snp.sub]), meta.args))$z
 #		print(c(i, set, ztmp, opt.z))
 	
@@ -129,36 +92,32 @@ z.max <- function(k, snp.vars, side, meta.def, meta.args, th = NULL, z.sub=rep(1
 		#if(side == 2) pos <- (pnorm(abs(ztmp), 0, 1, lower=FALSE, log=TRUE) - pnorm(abs(opt.z[snp.sub]), 0, 1, lower=FALSE, log=TRUE) < lrr)
 		#else pos <- (pnorm(ztmp, 0, 1, lower=FALSE, log=TRUE) - pnorm(opt.z[snp.sub], 0, 1, lower=FALSE, log=TRUE) < lrr)
         if(side == 2) {
-          pos <- pnorm(abs(ztmp), 0, 1, lower.tail=FALSE, log.p=TRUE) < pnorm(abs(opt.z[snp.sub]), 0, 1, lower.tail=FALSE, log.p=TRUE)
-        }
-	if (side == 1) {
-		pos <- pnorm(ztmp, 0, 1, lower.tail=FALSE, log.p=TRUE) < pnorm(opt.z[snp.sub], 0, 1, lower.tail=FALSE, log.p=TRUE)
-        }
-	if(side == -1) 
-	{
-		pos <- pnorm(ztmp, 0, 1, lower.tail=TRUE, log.p=TRUE) < pnorm(opt.z[snp.sub], 0, 1, lower.tail=TRUE, log.p=TRUE)
+          pos <- pnorm(abs(ztmp), 0, 1, lower.tail=FALSE, log.p=TRUE) <
+                 pnorm(abs(opt.z[snp.sub]), 0, 1, lower.tail=FALSE, log.p=TRUE)
+        } else {
+          pos <- pnorm(ztmp, 0, 1, lower.tail=FALSE, log.p=TRUE) <
+                 pnorm(opt.z[snp.sub], 0, 1, lower.tail=FALSE, log.p=TRUE)
         }
 
-	 npos <- sum(pos)
+		npos <- sum(pos)
 
 	
-	 if(npos > 0)
-	 {
+		if(npos > 0)
+		{
             jj          <- snp.sub[pos]   
-	     opt.z[jj]   <- ztmp[pos]
-	     opt.s[jj, ] <- matrix(set, npos, k, byrow=TRUE)
-	      nopt[jj]    <- nsub
+			opt.z[jj]   <- ztmp[pos]
+			opt.s[jj, ] <- matrix(set, npos, k, byrow=TRUE)
+			nopt[jj]    <- nsub
 
-	  }
+		}
 		
-          if(side == 2) ltmp <- (th[snp.sub] < 0 | (abs(opt.z[snp.sub]) < th[snp.sub]))
-	  if(side == 1) ltmp <- (th[snp.sub] < 0 | (opt.z[snp.sub] < th[snp.sub]))
-	  if(side == -1) ltmp <- (th[snp.sub] > 0 | (opt.z[snp.sub] > th[snp.sub]))
+		if(side == 2) ltmp <- (th[snp.sub] < 0 | (abs(opt.z[snp.sub]) < th[snp.sub]))
+		else ltmp <- (th[snp.sub] < 0 | (opt.z[snp.sub] < th[snp.sub]))
 	
-	  snp.sub <- snp.sub[ltmp]
-	  if(length(snp.sub) < 1) break
+		snp.sub <- snp.sub[ltmp]
+		if(length(snp.sub) < 1) break
 		
-	  i <- i + 1
+		i <- i + 1
 	}
 #	print(c(i, set, ztmp, opt.z))
 #	stop()
@@ -241,7 +200,7 @@ h.summary <- function(rlist, level = 0.05, digits = 3)
 				if(nrow(res$pheno) != len) stop("pheno expected for all SNPs")
 				types.lab <- colnames(res$pheno)
 				if(is.null(types.lab)) types.lab <- (1 : ncol(res$pheno))
-				spheno <- matrix(apply(res$pheno, 1, function(x) if(any(x)) paste(types.lab[x], collapse=",") else "NA"), ncol = 1)
+				spheno <- matrix(apply(res$pheno, 1, function(x) paste(types.lab[x], collapse=",")), ncol = 1)
 				colnames(spheno) <- "Pheno"
 			}
 
@@ -250,8 +209,8 @@ h.summary <- function(rlist, level = 0.05, digits = 3)
 				if(nrow(res$pheno.1) != len || nrow(res$pheno.2) != len) stop("pheno.1 and pheno.2 expected for all SNPs")
 				types.lab <- colnames(res$pheno.1)
 				if(is.null(types.lab)) types.lab <- (1 : ncol(res$pheno.1))
-				spheno.1 <- apply(res$pheno.1, 1, function(x) if(any(x)) paste(types.lab[x], collapse=",") else "NA")
-				spheno.2 <- apply(res$pheno.2, 1, function(x) if(any(x)) paste(types.lab[x], collapse=",") else "NA")
+				spheno.1 <- apply(res$pheno.1, 1, function(x) paste(types.lab[x], collapse=","))
+				spheno.2 <- apply(res$pheno.2, 1, function(x) paste(types.lab[x], collapse=","))
 				spheno <- cbind(spheno.1, spheno.2)
 				colnames(spheno) <- c("Pheno.1", "Pheno.2")
 			}
@@ -277,14 +236,14 @@ h.forest <- function(k, snp.var, t.lab, rlist, res, side, level, p.adj, digits)
 	res0 <- rlist[[1]]
 	res1 <- rlist[[2]]
 	res2 <- rlist[[3]]
-
+	
 	i0 <- pmatch(snp.var, names(res0$pval))
 	i1 <- pmatch(snp.var, names(res1$pval))
 	i2 <- pmatch(snp.var, names(res2$pval))
 	
 	CI0 <- getCI(res0$beta[snp.var], res0$sd[snp.var], level = level)
 	CI1 <- getCI(res1$beta[snp.var], res1$sd[snp.var], level = level)	
-	if(side != 2)
+	if(side == 1)
 	{
 		CI2 <- getCI(res2$beta[snp.var], res2$sd[snp.var], level = level)
 	} else
@@ -297,7 +256,7 @@ h.forest <- function(k, snp.var, t.lab, rlist, res, side, level, p.adj, digits)
                           round(CI0[1, 3], digits=digits), ")", sep="")
 	CI1.str <- paste("(", round(CI1[1, 2], digits=digits), ", ", 
                           round(CI1[1, 3], digits=digits), ")", sep="")
-	if(side != 2)
+	if(side == 1)
 	{
 		CI2.str <- paste("(", round(CI2[1, 2], digits=digits), ", ", 
                               round(CI2[1, 3], digits=digits), ")", sep="")
@@ -315,7 +274,7 @@ h.forest <- function(k, snp.var, t.lab, rlist, res, side, level, p.adj, digits)
 					paste("(", round(x[2], digits=digits), ", ", 
                                round(x[3], digits=digits), ")", sep="")
 					})
-	if(side != 2)
+	if(side == 1)
 	{
 		pos <- (res$beta > 0 & res2$pheno[i2, ])
 		neg <- (res$beta < 0 & res2$pheno[i2, ])
@@ -331,19 +290,19 @@ h.forest <- function(k, snp.var, t.lab, rlist, res, side, level, p.adj, digits)
 	mid <- c(NA, NA, CI$mid[neg], NA, NA, CI$mid[null]
 			 , NA, NA, CI$mid[pos], NA, CI0$mid[1], CI1$mid[1])
 
-	if(side != 2) mid <- c(mid, CI2$mid[1])
+	if(side == 1) mid <- c(mid, CI2$mid[1])
 	else mid <- c(mid, NA, CI2.1$mid[1], CI2.2$mid[1])
 
 	low <- c(NA, NA, CI$low[neg], NA, NA, CI$low[null]
 			 , NA, NA, CI$low[pos], NA, CI0$low[1], CI1$low[1])
 	
-	if(side != 2) low <- c(low, CI2$low[1])
+	if(side == 1) low <- c(low, CI2$low[1])
 	else low <- c(low, NA, CI2.1$low[1], CI2.2$low[1])
 	
 	high <- c(NA, NA, CI$high[neg], NA, NA, CI$high[null]
 			 , NA, NA, CI$high[pos], NA, CI0$high[1], CI1$high[1])
 	
-	if(side != 2) high <- c(high, CI2$high[1])
+	if(side == 1) high <- c(high, CI2$high[1])
 	else high <- c(high, NA, CI2.1$high[1], CI2.2$high[1])
 
 	
@@ -364,8 +323,8 @@ h.forest <- function(k, snp.var, t.lab, rlist, res, side, level, p.adj, digits)
 	CI.vec <- c(NA, NA, CI.str[neg], NA
 				, NA, CI.str[null], NA, NA, CI.str[pos], NA, CI0.str, CI1.str)
 
-	if(side != 2) CI.vec <- c(CI.vec, CI2.str)
-	else CI.vec <- c(CI.vec, c(NA, CI2.1.str, CI2.2.str))
+	if(side == 1) CI.vec <- c(CI.vec, CI2.str)
+	else CI.vec <- c(CI.vec, c(NA, CI2.1.str, CI2.1.str))
 
 	tabletext <- cbind(pheno.col, c("OR", round(mid, digits=digits))
 					   , rep("", length(mid) + 1)
@@ -378,7 +337,7 @@ h.forest <- function(k, snp.var, t.lab, rlist, res, side, level, p.adj, digits)
 #	par(omi = c(1, 0.05, 0.5, 0.05))
 	is.summary <-  c(rep(TRUE, 3), rep(FALSE, sum(neg)), FALSE, TRUE, rep(FALSE, sum(null))
 					 , FALSE, TRUE, rep(FALSE, sum(pos)), FALSE, rep(TRUE, 2))
-	if(side != 2) is.summary <- c(is.summary, TRUE)
+	if(side == 1) is.summary <- c(is.summary, TRUE)
 	if(side == 2) is.summary <- c(is.summary, c(TRUE, TRUE, TRUE))
 	rmeta::forestplot(tabletext, c(NA, log(mid)), c(NA, log(low)), c(NA, log(high)), zero=0, is.summary=is.summary
 				, clip=c(log(1/5),log(5)), xlog=TRUE, col=meta.colors(box="royalblue", lines="darkblue", summary="royalblue"))

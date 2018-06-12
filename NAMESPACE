@@ -1,2 +1,2 @@
-import(MASS, msm, mvtnorm, rmeta, tmvnsim)
-export(h.traits, h.types, h.summary, h.forestPlot, z.max, p.dlm)
+import(MASS, msm)
+export(h.traits, h.types, h.summary, h.forestPlot, z.max, p.dlm, p.tube)
