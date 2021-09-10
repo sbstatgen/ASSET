@@ -1,14 +1,21 @@
 Package: ASSET
-Title: An R package for subset-based association analysis of
-        heterogeneous traits and subtypes
-Version: 2.10.0
-Date: 2018-06-11
-Author: Samsiddhi Bhattacharjee, Nilanjan Chatterjee and William
-        Wheeler
-Description: An R package for subset-based analysis of heterogeneous
-        traits and subtypes
-Maintainer: Samsiddhi Bhattacharjee <sb1@nibmg.ac.in>
-Depends: MASS, msm, rmeta
-Suggests: RUnit, BiocGenerics
+Title: An R package for subset-based association analysis of 
+	heterogeneous traits and subtypes
+Version: 2.10.1
+Date: 2021-09-04
+Authors@R: c(
+	person("Samsiddhi", "Bhattacharjee", role = c("aut", "cre"), email="sb1@nibmg.ac.in"),
+	person("Nilanjan", "Chatterjee", role = "aut"),
+	person("William", "Wheeler", role = "aut")
+	)
+Description: An R package for subset-based analysis of heterogeneous traits and disease subtypes. 
+	The package allows the user to search through all possible subsets of z-scores to 
+	identify the subset of traits giving the best meta-analyzed z-score. Further, it returns a p-value
+	adjusting for the multiple-testing involved in the search. It also allows for searching for the 
+	best combination of disease subtypes associated with each variant.
+Depends: stats, graphics
+Imports: MASS, msm, rmeta
+Suggests: RUnit, BiocGenerics, knitr
+VignetteBuilder: knitr
 License: GPL-2 + file LICENSE
-biocViews: Software
+biocViews: StatisticalMethod, SNP, GenomeWideAssociation, MultipleComparison
