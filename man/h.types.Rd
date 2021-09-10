@@ -8,7 +8,7 @@ Subset-based analysis of case-control studies with heterogeneous disease subtype
 \usage{
 h.types(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, 
         subset=NULL, method=NULL, side=2, logit=FALSE, test.type="Score", 
-        zmax.args=NULL, meth.pval=c("DLM", "IS", "B"), pval.args=NULL)
+        zmax.args=NULL, meth.pval="DLM", pval.args=NULL)
 }
 \arguments{
   \item{dat}{A data frame containing individual level data for phenotype (disease status/subtype information), covariate data and
@@ -34,8 +34,7 @@ h.types(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab,
 \item{meth.pval}{A character string indicating the method of evaluating the p-value. Currently the options are "DLM" (Discrete Local
   Maximum), "IS" (Exact Importance Sampling) and "B" (Bonferroni) with the default option being DLM. The IS method is currently computationally
 feasible for analysis of at most k=10 studies/traits}
- \item{pval.args}{Optional arguments  to be
-  passed to \code{\link{p.dlm}} or \code{\link{p.tube}} as a named list. This option can be useful if the user wants to
+ \item{pval.args}{Optional arguments to be passed to internal p-value calculation functions \code{\link{p.dlm}} (method "DLM") or \code{p.tube} (method "IS") as a named list. This option can be useful if the user wants to
 restrict subset searches in some structured way, for example, incorporating ordering constraints.}
 }
 \value{

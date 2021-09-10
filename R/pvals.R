@@ -116,19 +116,19 @@ dlm.pval <- function(t.vec, k, search, side, cor.def, cor.args, sizes = rep(1, k
 		nn.sub <- nn.sub & apply(nn.set, 2, function(set1) do.call(sub.def, c(list(set1), sub.args)))
 		}
 #		Add a term to points with integral still below 1
-		t.sub <- (1:NT)[ss < 1]
+		t.sub <- seq_len(NT)[ss < 1]
 
 		if(length(t.sub) > 0 && search < 2)
 		{
 			cor.args$ncase <- matrix(cor.args$ncase, nrow=k, ncol=NT, byrow=FALSE)
-			int <- sapply(t.sub, function(j)
+			int <- vapply(t.sub, function(j)
 						{
 							ncor.args <- cor.args
 							ncor.args$ncase <- cor.args$ncase[, j]
 							ncor.args$ncntl <- ncor.args$ncntl[j]
 							qxd.prod.int(low[j], high[j], search, qxd.prod.cor, side=side, x, matrix(nn.x[, nn.sub]
 							, nrow=k, byrow=FALSE), cor.def, ncor.args)
-						})
+						}, 0)
 			ss[t.sub] <- ss[t.sub] + NXX * int
 		}
 		if(length(t.sub) > 0 && search == 2)
@@ -144,19 +144,20 @@ dlm.pval <- function(t.vec, k, search, side, cor.def, cor.args, sizes = rep(1, k
 #				if(is.null(dim(nn.x2))) nn.x2 <- matrix(nn.x2, nrow = k)
 #			}	
 #
-#			r.vec2 <- sapply(1:length(nn.sub), function(j) do.call(cor.def, c(list(x, nn.x2[, j], k, side), cor.args)))
+#			r.vec2 <- vapply(seq_along(nn.sub), function(j) do.call(cor.def
+#			, c(list(x, nn.x2[, j], k, side), cor.args)), rep(0, k))
 #			r.vec3 <- r.vec * r.vec2 + sgn[nn.sub] * sqrt((1 - r.vec * r.vec) * (1 - r.vec2 * r.vec2))
 #			rho.mat <- cbind(r.vec, r.vec2, r.vec3)
 
 			cor.args$ncase <- matrix(cor.args$ncase, nrow=k, ncol=NT, byrow=FALSE)
-			int <- sapply(t.sub, function(j)
+			int <- vapply(t.sub, function(j)
 						{
 							ncor.args <- cor.args
 							ncor.args$ncase <- cor.args$ncase[, j]
 							ncor.args$ncntl <- ncor.args$ncntl[j]
 							qxd.prod.int(low[j], high[j], search, qxd.prod.coef, side=side, x=x, nn.x=matrix(nn.x[, nn.sub]
 								, nrow=k, byrow=FALSE), cor.def, cor.args)
-						})
+						}, 0)
 						
 			ss[t.sub] <- ss[t.sub] + NXX * int
 		}
@@ -333,7 +334,7 @@ coef.meta <- function(x1, X2, k, ncase, ncntl, rmat=NULL, cor.numr=FALSE)
 	if(is.null(rmat)) rmat <- diag(1, k)
 	
 	xcom <- which(x1)
-	xdel <- apply(X2, 2, function(x2) (1:k)[xor(x1, x2)])
+	xdel <- apply(X2, 2, function(x2) seq_len(k)[xor(x1, x2)])
 	sgn <- (1 - 2 * x1[xdel]) %o% rep(1, nsnp)
 	ncom <- length(xcom)
 	ndel <- length(xdel)
@@ -430,9 +431,9 @@ tubeSim <- function(x, t0, nsamp, rmat0, neff0, cor.numr=FALSE)
 	Z <- array(0, c(k, nsamp, nsnp))
 	x <- as.logical(x)
 	r1 <- (which(x))[1]
-	r2 <- (1:k)[-r1]
+	r2 <- seq_len(k)[-r1]
 
-	for(j in 1:nsnp)
+	for(j in seq_len(nsnp))
 	{
 		if(j == 1 || ncol(rmat0) > 1 || ncol(neff0) > 1)
 		{
@@ -494,7 +495,7 @@ checkSim1 <- function(Z, t1, t2, rmat0, neff0, cor.numr=FALSE, sub.def=NULL, sub
 #		Skip this subset
 		if(!is.null(sub.def) && !do.call(sub.def, c(list(set), sub.args))) { i <- i + 1 ; next }
 		
-		for(j in 1:nsnp)
+		for(j in seq_len(nsnp))
 		{
 			if(cor.numr)
 			{
@@ -558,7 +559,7 @@ checkSim2 <- function(Z1, Z2, t1, t2, rmat0, neff0, cor.numr=FALSE, sub.def=NULL
 #		Skip this subset
 		if(!is.null(sub.def) && !do.call(sub.def, c(list(set), sub.args))) { i <- i + 1 ; next }
 
-		for(j in 1:nsnp)
+		for(j in seq_len(nsnp))
 		{
 			if(cor.numr)
 			{
@@ -630,25 +631,25 @@ tube.pval <- function(t.vec, k, search, side, ncase, ncntl, pool, rmat = NULL
 		if(pool == FALSE)
 		{
 			neff <- (ncase * ncntl1)/(ncase + ncntl1)
-			rmat <- sapply(1:nsnp
+			rmat <- vapply(seq_len(nsnp)
 						, function(j)
 						   {
 						   rtmp <- outer(sqrt(ncase[,j]/(ncase[,j] + ncntl[1, j])), sqrt(ncase[,j]/(ncase[,j]+ncntl[1, j])))
 						   diag(rtmp) <- 1
 						   as.vector(rtmp)
-						   })
+						   }, matrix(1, k, k))
 		}
 		if(pool == TRUE) 
 		{
 			N1 <- ncase + ncntl1
 			neff <- (ncase * (N1 - ncase))/N1
-			rmat <- sapply(1:nsnp
+			rmat <- vapply(seq_len(nsnp)
 						, function(j)
 						   {
 								rtmp <- (-1) * outer(ncase[, j]/sqrt(neff[, j]), ncase[, j]/sqrt(neff[, j]))/N[j]
 								diag(rtmp) <- 1
 								as.vector(rtmp)
-							})
+							}, matrix(1, k, k))
 		}
 #		Note: hard coded
 		cor.numr <- TRUE

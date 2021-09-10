@@ -8,7 +8,7 @@ Performs one-sided or two-sided subset-based meta-analysis of  heteregeneous stu
 \usage{
 h.traits(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl, 
   cor=NULL, cor.numr=FALSE, search=NULL, side=2, meta=FALSE, 
-  zmax.args=NULL, meth.pval=c("DLM","IS","B"), pval.args=NULL)
+  zmax.args=NULL, meth.pval="DLM", pval.args=NULL)
 }
 \arguments{
   \item{snp.vars}{A character vector giving the SNP names to be analyzed. No default.}
@@ -37,8 +37,7 @@ test.}
 The Default is FALSE.}
   \item{zmax.args}{Optional arguments to be passed to \code{\link{z.max}} as a named list. This option can be useful if the user wants to
 restrict subset searches in some structured way, for example, incorporating some ordering constraints.}
- \item{pval.args}{Optional arguments  to be
-  passed to \code{\link{p.dlm}} or \code{\link{p.tube}} as a named list. This option can be useful if the user wants to
+ \item{pval.args}{Optional arguments  to be passed to internal p-value calculation functions \code{\link{p.dlm}} (method "DLM") or \code{p.tube} (method "IS") as a named list. This option can be useful if the user wants to
 restrict subset searches in some structured way, for example, incorporating some ordering constraints.}
  \item{meth.pval}{The method of p-value computation. Currently the options are DLM (Discrete Local
   Maximum), IS(Exact Importance Sampling) and B (Bonferroni) with the default option being DLM. The IS method is currently computationally

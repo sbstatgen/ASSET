@@ -1,24 +1,24 @@
 
 h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl, cor=NULL
 	, cor.numr=FALSE, search=NULL, side=2, meta=FALSE, zmax.args=NULL
-	, meth.pval=c("DLM", "IS", "B"), pval.args=NULL)
+	, meth.pval="DLM", pval.args=NULL)
 {
     if (!is.null(search)) {
-      if (!(search %in% 1:2)) stop("ERROR: search must be NULL, 1 or 2")
+      if (!(search %in% c(1, 2))) stop("search must be NULL, 1 or 2")
     }
-    if ((is.null(side)) || (!(side %in% 1:2))) stop("ERROR: side must be 1 or 2")
-    if ((is.null(meth.pval)) || (!(meth.pval %in% c("DLM", "IS", "B")))) stop("ERROR: meth.pval must be DLM, IS, or B")
-    if ((is.null(meta)) || (!(meta %in% 0:1))) stop("ERROR: meta must be TRUE or FALSE")
-    if ((is.null(cor.numr)) || (!(cor.numr %in% 0:1))) stop("ERROR: cor.numr must be TRUE or FALSE")
+    if ((is.null(side)) || (!(side %in% c(1, 2)))) stop("side must be 1 or 2")
+    if ((is.null(meth.pval)) || (!(meth.pval %in% c("DLM", "IS", "B")))) stop("meth.pval must be DLM, IS, or B")
+    if ((is.null(meta)) || (!(meta %in% 0:1))) stop("meta must be TRUE or FALSE")
+    if ((is.null(cor.numr)) || (!(cor.numr %in% 0:1))) stop("cor.numr must be TRUE or FALSE")
     if (!is.null(pval.args)) {
-      if (!is.list(pval.args)) stop("ERROR: pval.args must be a named list")
+      if (!is.list(pval.args)) stop("pval.args must be a named list")
       temp <- names(pval.args)
-      if (is.null(temp)) stop("ERROR: pval.args must be a named list")
+      if (is.null(temp)) stop("pval.args must be a named list")
     }
     if (!is.null(zmax.args)) {
-      if (!is.list(zmax.args)) stop("ERROR: zmax.args must be a named list")
+      if (!is.list(zmax.args)) stop("zmax.args must be a named list")
       temp <- names(zmax.args)
-      if (is.null(temp)) stop("ERROR: zmax.args must be a named list")
+      if (is.null(temp)) stop("zmax.args must be a named list")
     }
 
 	k         <- length(traits.lab)
@@ -27,8 +27,8 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl, co
 	beta.hat  <- matrix(beta.hat, ncol=k, byrow=FALSE)
 	sigma.hat <- matrix(sigma.hat, ncol=k, byrow=FALSE)
 	
-     if(nrow(beta.hat) > nsnp) stop("ERROR: nrow(beta.hat) must equal length(snp.vars)")	
-     if(nrow(sigma.hat) > nsnp) stop("ERROR: nrow(sigma.hat) must equal length(snp.vars)")
+     if(nrow(beta.hat) > nsnp) stop("nrow(beta.hat) must equal length(snp.vars)")	
+     if(nrow(sigma.hat) > nsnp) stop("nrow(sigma.hat) must equal length(snp.vars)")
 
 	#if(nrow(beta.hat) > nsnp) beta.hat <- matrix(beta.hat[snp.vars, ], nrow = nsnp, ncol=k, byrow=FALSE)
 	#if(nrow(sigma.hat) > nsnp) sigma.hat <- matrix(sigma.hat[snp.vars, ], nrow = nsnp, ncol=k, byrow=FALSE)
@@ -51,14 +51,16 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl, co
 	{
 		#if(!all(c("N11", "N00", "N10", "N01") %in% names(cor)))
 	    #		stop("Expected four matrices in list cor with names N11, N00, N10 and N01")
-		#if(!all(sapply(cor[c("N11", "N00", "N10", "N01")], function(m) { is.matrix(m) && nrow(m) == k  && ncol(m) == k })))
+		#if(!all(vapply(cor[c("N11", "N00", "N10", "N01")]
+			#, function(m) { is.matrix(m) && nrow(m) == k  && ncol(m) == k }, TRUE)))
 	    # 		stop("N11, N00, N10 and N01 should be square matrices of dimension k")
 
        # Changed Aug 08 2013
        if(!all(c("N11", "N00", "N10") %in% names(cor))) {
 	     stop("Expected three matrices in list cor with names N11, N00 and N10")
        }
-	   if(!all(sapply(cor[c("N11", "N00", "N10")], function(m) { is.matrix(m) && nrow(m) == k  && ncol(m) == k })))
+	   if(!all(vapply(cor[c("N11", "N00", "N10")]
+		, function(m) { is.matrix(m) && nrow(m) == k  && ncol(m) == k }, TRUE)))
 	     		stop("N11, N00 and N10 should be square matrices of dimension k")
        cor$N01 <- t(cor$N10)
 
@@ -92,7 +94,7 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl, co
 	meta.res <- sub1.res <- sub2.res <- NULL
 	if(meta)
 	{ 
-		for(j in 1:nsnp)
+		for(j in seq_len(nsnp))
 		{
 			jj <- if(nrow(ncase) == 1) 1 else j
 			sub <- !(is.na(beta.hat[j, ]) | is.na(sigma.hat[j, ]) | is.na(ncase[jj, ]) | is.na(ncntl[jj, ]))
@@ -123,7 +125,7 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl, co
 		if(is.null(pval.args) || is.null(pval.args$search)) pval.args <- c(pval.args, list(search = 1))
 		else pval.args$search <- 1
 
-		for(j in 1:nsnp)
+		for(j in seq_len(nsnp))
 		{
 			jj <- if(nrow(ncase) == 1) 1 else j
 			sub <- !(is.na(beta.hat[j, ]) | is.na(sigma.hat[j, ]) | is.na(ncase[jj, ]) | is.na(ncntl[jj, ]))
@@ -154,7 +156,7 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl, co
 		if(is.null(pval.args) || is.null(pval.args$search)) pval.args <- c(pval.args, list(search = 2))
 		else pval.args$search <- 2
 
-		for(j in 1:nsnp)
+		for(j in seq_len(nsnp))
 		{
 			jj <- if(nrow(ncase) == 1) 1 else j
 			res <- NULL
@@ -257,8 +259,8 @@ h.traits2 <- function(k, beta.hat, sigma.hat, ncase, ncntl, rmat, cor.numr, side
 		sizes <- pval.args$sizes
 		csizes <- cumsum(sizes)
 		csizes0 <- c(0, cumsum(sizes[-length(sizes)]))
-		sizes1 <- sapply(1:length(sizes), function(i) { sum(sub1 > csizes0[i] & sub1 <= csizes[i]) })
-		sizes2 <- sapply(1:length(sizes), function(i) { sum(sub2 > csizes0[i] & sub2 <= csizes[i]) })
+		sizes1 <- vapply(seq_along(sizes), function(i) { sum(sub1 > csizes0[i] & sub1 <= csizes[i]) }, 0L)
+		sizes2 <- vapply(seq_along(sizes), function(i) { sum(sub2 > csizes0[i] & sub2 <= csizes[i]) }, 0L)
 		sizes1 <- sizes1[sizes1 > 0]
 		sizes2 <- sizes2[sizes2 > 0]
 		pval.args1$sizes <- sizes1

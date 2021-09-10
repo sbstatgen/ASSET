@@ -37,7 +37,7 @@ corr.mat.logit <- function(nmat11, nmat00, nmat10=NULL, nmat01=NULL)
 findMiss.vars <- function(x, vars=NULL, miss=NA) 
 {	
 	if(is.null(dim(x))) dim(x) <- c(length(x), 1)
-	if (is.null(vars)) vars <- 1:ncol(x)
+	if (is.null(vars)) vars <- seq_len(ncol(x))
 	
   ##SMB: changed this a bit to speed it up
 	temp <- rep(TRUE, times=nrow(x)) 
@@ -54,7 +54,7 @@ z.max <- function(k, snp.vars, side, meta.def, meta.args, th = rep(-1, length(sn
 			, sub.def = NULL, sub.args = NULL, wt.def=NULL, wt.args=NULL)
 {
 	nsnp <- length(snp.vars)
-	snp.sub <- 1:nsnp
+	snp.sub <- seq_len(nsnp)
 	
 	if(length(th) == 1) th = rep(th, nsnp)
 	if(length(th) != nsnp) stop("Expected one threshold or a threshold for each SNP")
@@ -149,9 +149,9 @@ h.summary <- function(rlist, level = 0.05, digits = 3)
 	nmlist <- NULL
 	
 	rnames <- names(rlist)
-	if(is.null(rnames)) rnames <- paste("Results-", 1:length(rlist),sep="")
+	if(is.null(rnames)) rnames <- paste("Results-", seq_along(rlist), sep="")
 
-	for(i in 1:length(rlist))
+	for(i in seq_along(rlist))
 	{
 		if(!is.null(rlist[[i]]))
 		{
@@ -164,7 +164,7 @@ h.summary <- function(rlist, level = 0.05, digits = 3)
             if(len == 0) next 
 
 			svars <- names(res$pval)
-			if(is.null(svars)) svars <- paste("SNP-", 1:len, sep="")
+			if(is.null(svars)) svars <- paste("SNP-", seq_len(len), sep="")
 			spheno <- NULL
 			
 			if(!is.null(res$beta))
@@ -199,7 +199,7 @@ h.summary <- function(rlist, level = 0.05, digits = 3)
 			{
 				if(nrow(res$pheno) != len) stop("pheno expected for all SNPs")
 				types.lab <- colnames(res$pheno)
-				if(is.null(types.lab)) types.lab <- (1 : ncol(res$pheno))
+				if(is.null(types.lab)) types.lab <- seq_len(ncol(res$pheno))
 				spheno <- matrix(apply(res$pheno, 1, function(x) paste(types.lab[x], collapse=",")), ncol = 1)
 				colnames(spheno) <- "Pheno"
 			}
@@ -208,7 +208,7 @@ h.summary <- function(rlist, level = 0.05, digits = 3)
 			{
 				if(nrow(res$pheno.1) != len || nrow(res$pheno.2) != len) stop("pheno.1 and pheno.2 expected for all SNPs")
 				types.lab <- colnames(res$pheno.1)
-				if(is.null(types.lab)) types.lab <- (1 : ncol(res$pheno.1))
+				if(is.null(types.lab)) types.lab <- seq_len(ncol(res$pheno.1))
 				spheno.1 <- apply(res$pheno.1, 1, function(x) paste(types.lab[x], collapse=","))
 				spheno.2 <- apply(res$pheno.2, 1, function(x) paste(types.lab[x], collapse=","))
 				spheno <- cbind(spheno.1, spheno.2)
@@ -384,7 +384,7 @@ h.forestPlot <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2) {
   } else if (which == "h.traits") {
     traits.forest(rlist, snp.var, level=level, p.adj=p.adj, digits=digits)
   } else {
-    stop("ERROR: rlist is not a valid return list from h.types() or h.traits()")
+    stop("rlist is not a valid return list from h.types() or h.traits()")
   }
 
   NULL
@@ -408,7 +408,7 @@ checkData.vars <- function(data, vars) {
     } 
   } else {
     nc <- ncol(data)
-    temp <- !(vars %in% 1:nc)
+    temp <- !(vars %in% seq_len(nc))
     if (any(temp)) {
       miss <- vars[temp]
       print(miss)
@@ -440,7 +440,7 @@ checkData.rownames <- function(data, vars) {
     } 
   } else {
     nc <- nrow(data)
-    temp <- !(vars %in% 1:nc)
+    temp <- !(vars %in% seq_len(nc))
     if (any(temp)) {
       miss <- vars[temp]
       print(miss)
