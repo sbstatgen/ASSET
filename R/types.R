@@ -2,18 +2,18 @@
 # Nov 03 2011  Allow types.lab to be NULL
 
 h.types <- function(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, subset=NULL, method=NULL, side=2
-, logit=FALSE, test.type = "Score", zmax.args = NULL, meth.pval = c("DLM", "IS", "B"), pval.args = NULL)
+, logit=FALSE, test.type = "Score", zmax.args = NULL, meth.pval = "DLM", pval.args = NULL)
 
 {
-    if (!is.data.frame(dat)) stop("ERROR: dat must be a data frame")
-    if ((is.null(side)) || (!(side %in% 1:2))) stop("ERROR: side must be 1 or 2")
-    if ((is.null(meth.pval)) || (!(meth.pval %in% c("DLM", "IS", "B")))) stop("ERROR: meth.pval must be DLM, IS, or B")
-    if ((is.null(logit)) || (!(logit %in% 0:1))) stop("ERROR: logit must be TRUE or FALSE")
-    if ((is.null(test.type)) || (!(test.type %in% c("Score", "Wald")))) stop("ERROR: test.type must be Score or Wald")
+    if (!is.data.frame(dat)) stop("dat must be a data frame")
+    if ((is.null(side)) || (!(side %in% c(1, 2)))) stop("side must be 1 or 2")
+    if ((is.null(meth.pval)) || (!(meth.pval %in% c("DLM", "IS", "B")))) stop("meth.pval must be DLM, IS, or B")
+    if ((is.null(logit)) || (!(logit %in% 0:1))) stop("logit must be TRUE or FALSE")
+    if ((is.null(test.type)) || (!(test.type %in% c("Score", "Wald")))) stop("test.type must be Score or Wald")
     if (!is.null(pval.args)) {
-      if (!is.list(pval.args)) stop("ERROR: pval.args must be a named list")
+      if (!is.list(pval.args)) stop("pval.args must be a named list")
       temp <- names(pval.args)
-      if (is.null(temp)) stop("ERROR: pval.args must be a named list")
+      if (is.null(temp)) stop("pval.args must be a named list")
     }
 
     # Check that the variables exist
@@ -27,13 +27,13 @@ h.types <- function(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, 
     adj.vars     <- convertPosToVars(dat, adj.vars)
 
     if (!is.null(method)) {
-      if (length(method) != 1) stop("ERROR: The method option must be NULL, case.control, or case.complement")
+      if (length(method) != 1) stop("The method option must be NULL, case.control, or case.complement")
       method <- tolower(method)
       if (method == -1) {
         pool <= -1
       } else {
         temp <- c("case-control", "case-complement") %in% method
-        if (!any(temp)) stop("ERROR: The method option must be NULL, case-control, or case-complement")
+        if (!any(temp)) stop("The method option must be NULL, case-control, or case-complement")
         pool <- temp[2]
       }
     } else {
@@ -50,17 +50,17 @@ h.types <- function(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, 
       labs <- unique(dat[subset, response.var])
     }
 
-    if (!(cntl.lab %in% labs)) stop(paste("ERROR: cntl.lab = ", cntl.lab, " is not a valid label", sep=""))
+    if (!(cntl.lab %in% labs)) stop("cntl.lab = ", cntl.lab, " is not a valid label", sep="")
     if (is.null(types.lab)) types.lab <- labs[!(labs %in% cntl.lab)]
     temp      <- !(types.lab %in% cntl.lab)
     types.lab <- types.lab[temp]
     k         <- length(types.lab)
-    if (!k) stop("ERROR: with types.lab. No disease subtypes are being included.")
+    if (!k) stop("in types.lab. No disease subtypes are being included.")
     temp <- types.lab %in% labs
     if (!all(temp)) {
       temp <- types.lab[!temp]
       print(temp)
-      stop("ERROR: with types.lab. The above disease subtypes are not valid.")
+      stop("in types.lab. The above disease subtypes are not valid.")
     }
     if (is.null(subset)) {
       subset <- dat[, response.var] %in% c(cntl.lab, types.lab)
@@ -81,7 +81,7 @@ h.types <- function(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, 
 	{ 
 		res <- try(types.wald(sub=rep(TRUE, k), snp.vars=snp.vars, dat=dat, response.var=response.var, adj.vars=adj.vars
 					, types.lab=types.lab, cntl.lab=cntl.lab, subset=subset, pool=FALSE, side=side))
-		if(inherits(res, "try-error")) warning(paste("Error in Overall Logistic:", res))
+		if(inherits(res, "try-error")) warning("Failure in Overall Logistic: ", res)
 		else logit.res <- res
 	}
 
@@ -95,7 +95,7 @@ h.types <- function(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, 
 							, side=side, meta.C = TRUE, zmax.args=zmax.args
 							, meth.pval=meth.pval, pval.args=pval.args))
 		
-		if(inherits(res, "try-error")) warning(paste("Error in Subset-search (Case-Control):", res))
+		if(inherits(res, "try-error")) warning("Failure in Subset-search (Case-Control): ", res)
 		else SC.res <- res
 		
 	}
@@ -109,7 +109,7 @@ h.types <- function(dat, response.var, snp.vars, adj.vars, types.lab, cntl.lab, 
 						, side=side, meta.C = TRUE, zmax.args=zmax.args
 						, meth.pval=meth.pval, pval.args=pval.args)  
 
-		if(inherits(res, "try-error")) warning(paste("Error in Subset-search (Case-Control):", res))
+		if(inherits(res, "try-error")) warning("Failure in Subset-search (Case-Control): ", res)
 		else CC.res <- res
 	}
 
@@ -160,7 +160,7 @@ h.types0 <- function(k, dat, response.var, snp.vars, adj.vars, types.lab, cntl.l
 	subset1 <- findMiss.vars(dat, vars=c(response.var, adj.vars), miss = NA)
 	subset0 <- if(is.null(subset)) subset1 else (subset & subset1)
 	
-	for(j in 1:nsnp)	
+	for(j in seq_len(nsnp))	
 	{
 		subset0g <- subset0 & findMiss.vars(dat, vars=snp.vars[j], miss = NA)
 		
@@ -240,7 +240,7 @@ types.score <- function(sub, snp.vars, dat, response.var, adj.vars, types.lab, c
 	
 	if(inherits(res, "try-error") || (!res$converged))
 	{
-		warning("error in glm")
+		warning("Failure in glm")
 		p.vec <- rep(mean(d.vec, na.rm = TRUE), N)
 	} else
 	{
@@ -270,9 +270,9 @@ types.score <- function(sub, snp.vars, dat, response.var, adj.vars, types.lab, c
 	{
 		for(j in which(denr < 0))
 		{
-			warning(paste("Negative denominator before refitting:", snp.vars[j]))
-			g.vec.j <- g.vec[, (j - 1) * N + (1:N)]
-			nmiss.j <- nmiss.ind[(j - 1) * N + (1:N)]
+			warning("Negative denominator before refitting: ", snp.vars[j])
+			g.vec.j <- g.vec[, (j - 1) * N + seq_len(N)]
+			nmiss.j <- nmiss.ind[(j - 1) * N + seq_len(N)]
 			NN <- sum(nmiss.j)
 			p.vec.j <- rep(-1, N)
 			if(geno.flag) { 
@@ -280,7 +280,7 @@ types.score <- function(sub, snp.vars, dat, response.var, adj.vars, types.lab, c
 				res <- try(glm(mat ~ 1, family=binomial(link="logit")))
 			} else res <- try(glm(d.vec ~ xmat, subset = nmiss.j, family=binomial(link="logit")))
 			
-			if(inherits(res, "try-error") || (!res$converged)) warning("error in glm")
+			if(inherits(res, "try-error") || (!res$converged)) warning("Failure in glm")
 			else
 			{
 				if(geno.flag) p.vec[nmiss.j] <- rep(res$fitted, NN)
@@ -290,7 +290,7 @@ types.score <- function(sub, snp.vars, dat, response.var, adj.vars, types.lab, c
 			res <- score.compute(d.vec, p.vec.j, g.vec.j, xmat, nmiss.j, N, 1, p, xcov=NULL)
 			numr[j] <- res$numr
 			denr[j] <- res$denr
-			if(denr[j] < 0) warning(paste("Negative denominator after refitting:", snp.vars[j]))
+			if(denr[j] < 0) warning("Negative denominator after refitting: ", snp.vars[j])
 		}
 	}
 #	print(c(sub))
@@ -311,24 +311,24 @@ score.compute <- function(d.vec, p.vec, g.vec, xmat, nmiss, N, nsnp, p, xcov=NUL
 	tmp.mat <- matrix(nmiss * g.vec * g.vec * p.vec * q.vec, N, nsnp, byrow=FALSE)
 	denr0 <- apply(tmp.mat, 2, sum, na.rm=TRUE)
 	
-	XtDg <- matrix(sapply(1:p, function(j)
+	XtDg <- matrix(vapply(seq_len(p), function(j)
 						  {
 						  tmp.mat <- matrix(g.vec * nmiss * p.vec * q.vec * xmat[, j], N, nsnp, byrow=FALSE)
 						  apply(tmp.mat, 2, sum, na.rm=TRUE)				   
-						  }), ncol=p, byrow=FALSE)
-	XtD <- matrix(sapply(1:p, function(j)
+						  }, rep(0, nsnp)), ncol=p, byrow=FALSE)
+	XtD <- matrix(vapply(seq_len(p), function(j)
 						 {
 						 tmp.mat <- matrix(nmiss * (d.vec - p.vec) * xmat[, j], N, nsnp, byrow=FALSE)
 						 apply(tmp.mat, 2, sum, na.rm=TRUE)
-						 }), ncol=p, byrow=FALSE)
+						 }, rep(0, nsnp)), ncol=p, byrow=FALSE)
 	rm(tmp.mat)
 	gc()
 	
 	if(! is.null(xcov))
 	{
-		numr <- numr0 - sapply(1:nsnp, function(j){ 
+		numr <- numr0 - vapply(seq_len(nsnp), function(j){ 
 							   crossprod(matrix(XtDg[j, ], ncol = 1), xcov %*% matrix(XtD[j, ], ncol=1))
-							   })
+							   }, 0)
 		
 		denr <- denr0 - apply(XtDg, 1, function(x){ 
 							  mx <- matrix(x, ncol=1)
@@ -338,7 +338,8 @@ score.compute <- function(d.vec, p.vec, g.vec, xmat, nmiss, N, nsnp, p, xcov=NUL
 	else
 	{
 		xinfo <- t(xmat) %*% (nmiss * p.vec * q.vec * xmat)
-		numr <- numr0 - sapply(1:nsnp, function(j){ crossprod(matrix(XtDg[j, ], ncol = 1), mySolve(xinfo, matrix(XtD[j, ], ncol=1)))})
+		numr <- numr0 - vapply(seq_len(nsnp), function(j){ crossprod(matrix(XtDg[j, ], ncol = 1)
+				, mySolve(xinfo, matrix(XtD[j, ], ncol=1)))}, 0)
 		denr <- denr0 - apply(XtDg, 1, function(x){ mx <- matrix(x, ncol=1) ; crossprod(mx, mySolve(xinfo, mx))})
 	}
 	return(list(numr=numr, denr=denr))
@@ -392,7 +393,7 @@ types.wald <- function(sub, snp.vars, dat, response.var, adj.vars, types.lab, cn
 	ndat[, response.var] <- dx1
 	ndat[, response.var] <- as.integer(ndat[, response.var])
 	
-	stat <- sapply(1:nsnp, function(j)
+	stat <- vapply(seq_len(nsnp), function(j)
 					 {
 
 					if(nrow(sub) == nsnp)
@@ -425,15 +426,15 @@ types.wald <- function(sub, snp.vars, dat, response.var, adj.vars, types.lab, cn
 						res <- try(glm(mat ~ geno, family=binomial(link="logit")))
 					} else res <- try(glm(as.formula(fmla), data=ndat, subset = subset01, family=binomial(link="logit")))
 
-					if(inherits(res, "try-error") || (!res$converged)) warning("error in glm")
+					if(inherits(res, "try-error") || (!res$converged)) warning("Failure in glm")
 					else 
 					{
 						coef <- summary(res)$coef
 						pos <- pmatch(if(geno.flag) "geno" else snp, rownames(coef))
-						if(!is.na(pos)) ret <- coef[pos, 1:2]
+						if(!is.na(pos)) ret <- coef[pos, c(1, 2)]
 					}
 					ret
-					})
+					}, c(0,0))
 
 	colnames(stat) <- snp.vars
 

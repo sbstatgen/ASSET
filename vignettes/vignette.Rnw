@@ -1,6 +1,8 @@
 %\VignetteIndexEntry{ASSET Vignette}
+%\VignetteEngine{knitr::knitr}
 %\VignettePackage{ASSET}
 %\VigetteDepends{ASSET}
+
 
 \documentclass[a4paper]{article}
 
