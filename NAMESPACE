@@ -1,2 +1,3 @@
-import(MASS, msm)
-export(h.traits, h.types, h.summary, h.forestPlot, z.max, p.dlm, p.tube)
+import(MASS, rmeta, stats, graphics)
+importFrom(msm, rtnorm)
+export(h.traits, h.types, h.summary, h.forestPlot, z.max, p.dlm)
