@@ -1,10 +1,11 @@
 Package: ASSET
 Title: An R package for subset-based association analysis of 
 	heterogeneous traits and subtypes
-Version: 2.13.0
+Version: 2.13.1
 Date: 2021-09-04
 Authors@R: c(
 	person("Samsiddhi", "Bhattacharjee", role = c("aut", "cre"), email="sb1@nibmg.ac.in"),
+	person("Guanghao", "Qi", role = "aut"),
 	person("Nilanjan", "Chatterjee", role = "aut"),
 	person("William", "Wheeler", role = "aut")
 	)
@@ -19,3 +20,4 @@ Suggests: RUnit, BiocGenerics, knitr
 VignetteBuilder: knitr
 License: GPL-2 + file LICENSE
 biocViews: StatisticalMethod, SNP, GenomeWideAssociation, MultipleComparison
+RoxygenNote: 7.1.2
