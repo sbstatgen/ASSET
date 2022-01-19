@@ -29,7 +29,7 @@
 
 }
 \keyword{data}
-\seealso{h.traits}
+\seealso{h.types, fast_asset}
 
 
 

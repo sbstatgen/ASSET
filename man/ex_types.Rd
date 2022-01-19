@@ -24,7 +24,7 @@
 
 }
 \keyword{data}
-\seealso{h.traits}
+\seealso{h.traits, fast_asset}
 
 
 
