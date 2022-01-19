@@ -27,11 +27,12 @@ h.traits <- function(snp.vars, traits.lab, beta.hat, sigma.hat, ncase, ncntl, co
 	beta.hat  <- matrix(beta.hat, ncol=k, byrow=FALSE)
 	sigma.hat <- matrix(sigma.hat, ncol=k, byrow=FALSE)
 	
-     if(nrow(beta.hat) > nsnp) stop("nrow(beta.hat) must equal length(snp.vars)")	
-     if(nrow(sigma.hat) > nsnp) stop("nrow(sigma.hat) must equal length(snp.vars)")
+       #SB: traits.forest calling for 1 snp with whole matrix. So this was generating error.
+       #if(nrow(beta.hat) > nsnp) stop("nrow(beta.hat) must equal length(snp.vars)")	
+       #if(nrow(sigma.hat) > nsnp) stop("nrow(sigma.hat) must equal length(snp.vars)")
 
-	#if(nrow(beta.hat) > nsnp) beta.hat <- matrix(beta.hat[snp.vars, ], nrow = nsnp, ncol=k, byrow=FALSE)
-	#if(nrow(sigma.hat) > nsnp) sigma.hat <- matrix(sigma.hat[snp.vars, ], nrow = nsnp, ncol=k, byrow=FALSE)
+	if(nrow(beta.hat) > nsnp) beta.hat <- matrix(beta.hat[snp.vars, drop=FALSE], nrow = nsnp, ncol=k, byrow=FALSE)
+	if(nrow(sigma.hat) > nsnp) sigma.hat <- matrix(sigma.hat[snp.vars, drop=FALSE], nrow = nsnp, ncol=k, byrow=FALSE)
 
 	rownames(beta.hat) <- snp.vars
 	rownames(sigma.hat) <- snp.vars
@@ -375,15 +376,15 @@ traits.forest0 <- function(snp.var, traits.lab, beta.hat, sigma.hat, ncase, ncnt
 	h.forest(k, snp.var, traits.lab, rlist, res, side = 2, level=level, p.adj = p.adj, digits=digits)
 }
 
-traits.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
+traits.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2, calc.miss=FALSE)
 {
 	if(length(snp.var) > 1) stop("Length of snp.var should be 1")
 	if(!(snp.var %in% rlist$snp.vars)) stop("snp.var was not a SNP analyzed")
     traits.lab <- rlist$traits.lab
-    beta.hat   <- rlist$beta.hat
-    sigma.hat  <- rlist$sigma.hat
-    ncase      <- rlist$ncase
-    ncntl      <- rlist$ncntl
+    beta.hat   <- rlist$beta.hat[snp.var, ]
+    sigma.hat  <- rlist$sigma.hat[snp.var, ]
+    ncase      <- rlist$ncase[1, ]
+    ncntl      <- rlist$ncntl[1, ]
     cor        <- rlist$cor
     cor.numr   <- rlist$cor.numr
     search     <- rlist$search
@@ -402,38 +403,42 @@ traits.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
     ov.flag <- !is.null(ov)
     cc.flag <- !is.null(cc)
     cp.flag <- !is.null(cp)
-    if ((!ov.flag) || (!cc.flag) || (!cp.flag)) {
-      if (ov.flag) {
-        meta <- FALSE
-      } else {
-        meta <- TRUE
-      }
-
-      search <- NULL
-      if ((!cc.flag) && (!cp.flag)) {
-        search <- NULL
-      } else if (!cc.flag) {
-        search <- 1
-      } else if (!cp.flag) {
-        search <- 2
-      }
-      ret <- h.traits(snp.var, traits.lab, beta.hat, sigma.hat, ncase, ncntl, 
-                      cor=cor, cor.numr=cor.numr, search=search, side=side, 
-                      meta=meta, zmax.args=zmax.args, meth.pval=meth.pval, 
-                      pval.args=pval.args)
-
-      if (!ov.flag) ov <- ret[["Meta", exact=TRUE]]
-      if (!cc.flag) cc <- ret[["Subset.1sided", exact=TRUE]]
-      if (!cp.flag) cp <- ret[["Subset.2sided", exact=TRUE]]
+    if (calc.miss && ((!ov.flag) || (!cc.flag) || (!cp.flag))) 
+    {
+	if (ov.flag)
+	{
+		meta <- FALSE
+      	} else 
+      	{
+      		meta <- TRUE
+      	}
+      	search <- NULL
+      	if ((!cc.flag) && (!cp.flag)) 
+      	{
+      		search <- NULL
+      	} else if (!cc.flag) 
+      	{
+		search <- 1
+	} else if (!cp.flag) 
+	{
+		search <- 2
+	}
+    	ret <- h.traits(snp.var, traits.lab, beta.hat, sigma.hat, ncase, ncntl, 
+                     cor=cor, cor.numr=cor.numr, search=search, side=side, 
+                     meta=meta, zmax.args=zmax.args, meth.pval=meth.pval, 
+                     pval.args=pval.args)
+	if (!ov.flag) ov <- ret[["Meta", exact=TRUE]]
+	if (!cc.flag) cc <- ret[["Subset.1sided", exact=TRUE]]
+	if (!cp.flag) cp <- ret[["Subset.2sided", exact=TRUE]]
     }
     
     newlist <- list(Meta=ov, Subset.1sided=cc, Subset.2sided=cp)
     
-	beta <- beta.hat[snp.var, ]
-	sd   <- sigma.hat[snp.var, ]
-	res  <- list(beta=beta, sd=sd, pval=2*pnorm(abs(beta/sd), lower.tail=FALSE))
+    beta <- beta.hat
+    sd   <- sigma.hat
+    res  <- list(beta=beta, sd=sd, pval=2*pnorm(abs(beta/sd), lower.tail=FALSE))
 	
-	h.forest(k, snp.var, traits.lab, newlist, res, side=2, level=level, 
+    h.forest(k, snp.var, traits.lab, newlist, res, side=2, level=level, 
              p.adj=p.adj, digits=digits)
 
 }

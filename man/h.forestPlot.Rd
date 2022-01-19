@@ -6,7 +6,7 @@
 Forest Plot for meta-analysis of heterogenerous traits or types.
 }
 \usage{
-h.forestPlot(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
+h.forestPlot(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2, calc.miss=FALSE)
 }
 \arguments{
   \item{rlist}{The list of results returned by \code{\link{h.traits}} or \code{\link{h.types}}. SNPs other than \code{snp.var} are ignored.} 
@@ -14,6 +14,8 @@ h.forestPlot(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
   \item{level}{Level for confidence intervals. Default is \code{0.05} for \code{95\%} confidence intervals.}
   \item{p.adj}{Logical. Whether to report Bonferroni adjusted p-values for each individual subtype. Default is TRUE.}  
   \item{digits}{Number of significant digits to display the odds ratios in the plot.}
+  \item{calc.miss}{Logical. If TRUE, first 3 components of rlist are calculated and filled (if NULL) so that all 3 summarizations can be 
+        shown in the forest plot.}
 }
 \value{
 Forest plot for a SNP showing regression coefficients (e.g. log-odds-ratio for case-control studies) for individual studies/traits and 

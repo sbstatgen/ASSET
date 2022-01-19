@@ -473,13 +473,13 @@ types.forest0 <- function(dat, snp.var, response.var, adj.vars, types.lab, cntl.
                          logit = TRUE, test.type = "Wald")
 	}
  	
-	res <- 	types.wald(sub = nsub, snp.vars=rep(snp.var, k), dat=dat, response.var=response.var, adj.vars=adj.vars
+	res <- types.wald(sub = nsub, snp.vars=rep(snp.var, k), dat=dat, response.var=response.var, adj.vars=adj.vars
 					   , types.lab=types.lab, cntl.lab=cntl.lab, subset=subset, pool=FALSE)
 
 	h.forest(k, snp.var, types.lab, rlist, res, side = 1, level=level, p.adj = p.adj, digits=digits)
 }
 
-types.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
+types.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2, calc.miss=FALSE)
 {
 	if(length(snp.var) > 1) stop("Length of snp.var should be 1")
 	if(!(snp.var %in% colnames(rlist$data))) stop("colnames of data does not have snp.var")
@@ -507,19 +507,25 @@ types.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
     ov.flag <- !is.null(ov)
     cc.flag <- !is.null(cc)
     cp.flag <- !is.null(cp)
-    if ((!ov.flag) || (!cc.flag) || (!cp.flag)) {
-      if (ov.flag) {
+    if (calc.miss && ((!ov.flag) || (!cc.flag) || (!cp.flag))) 
+    {
+      if (ov.flag) 
+      {
         logit <- FALSE
-      } else {
+      } else 
+      {
         logit <- TRUE
       }
 
       method <- "-1"
-      if ((!cc.flag) && (!cp.flag)) {
+      if ((!cc.flag) && (!cp.flag)) 
+      {
         method <- NULL
-      } else if (!cc.flag) {
+      } else if (!cc.flag) 
+      {
         method <- "case-control"
-      } else if (!cp.flag) {
+      } else if (!cp.flag) 
+      {
         method <- "case-complement"
       }
 
@@ -533,10 +539,10 @@ types.forest <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2)
     
     newlist <- list(Overall.Logistic=ov, Subset.Case.Control=cc, Subset.Case.Complement=cp)
     
-	res <- 	types.wald(sub = nsub, snp.vars=rep(snp.var, k), dat=rlist$data, response.var=response.var, 
+    res <- types.wald(sub = nsub, snp.vars=rep(snp.var, k), dat=rlist$data, response.var=response.var, 
                adj.vars=adj.vars, types.lab=types.lab, cntl.lab=cntl.lab, subset=subset, pool=FALSE)
 
-	h.forest(k, snp.var, types.lab, newlist, res, side = 1, level=level, p.adj = p.adj, digits=digits)
+    h.forest(k, snp.var, types.lab, newlist, res, side = 1, level=level, p.adj = p.adj, digits=digits)
 }
 
 
