@@ -1,22 +1,22 @@
 # Nov 01 2011  Add function h.forest
 
 
-myInv <- function(A)
-{
+myInv <- function(A){
+
 	Ainv <- try(solve(A))
 	if (inherits(Ainv, "try-error")) Ainv <- ginv(A)
 	Ainv
 }
 
-mySolve <- function(A, B)
-{
+mySolve <- function(A, B){
+
 	AinvB <- try(solve(A, B))
 	if (inherits(AinvB, "try-error")) AinvB <- ginv(A) %*% B 
 	AinvB
 }
 
-corr.mat.logit <- function(nmat11, nmat00, nmat10=NULL, nmat01=NULL)
-{
+corr.mat.logit <- function(nmat11, nmat00, nmat10=NULL, nmat01=NULL){
+
 	k <- nrow(nmat11)
 	if(is.null(nmat10)) nmat10 <- 0
 	if(is.null(nmat01)) nmat01 <- 0
@@ -34,8 +34,8 @@ corr.mat.logit <- function(nmat11, nmat00, nmat10=NULL, nmat01=NULL)
 }
 
 # Function to identify rows with missing values of certain variables. 
-findMiss.vars <- function(x, vars=NULL, miss=NA) 
-{	
+findMiss.vars <- function(x, vars=NULL, miss=NA) {
+
 	if(is.null(dim(x))) dim(x) <- c(length(x), 1)
 	if (is.null(vars)) vars <- seq_len(ncol(x))
 	
@@ -51,8 +51,8 @@ findMiss.vars <- function(x, vars=NULL, miss=NA)
 
 
 z.max <- function(k, snp.vars, side, meta.def, meta.args, th = rep(-1, length(snp.vars))
-			, sub.def = NULL, sub.args = NULL, wt.def=NULL, wt.args=NULL)
-{
+			, sub.def = NULL, sub.args = NULL, wt.def=NULL, wt.args=NULL) {
+			
 	nsnp <- length(snp.vars)
 	snp.sub <- seq_len(nsnp)
 	
@@ -134,17 +134,16 @@ z.max <- function(k, snp.vars, side, meta.def, meta.args, th = rep(-1, length(sn
 	
 }
 
-getCI <- function(beta, sd, level=0.05)
-{
+getCI <- function(beta, sd, level=0.05) {
+
 	half.width <- qnorm(1 - level/2) * sd
 	low <- beta - half.width
 	high <- beta + half.width
 	return(data.frame(mid = exp(beta), low=exp(low), high=exp(high)))
 }
 
-h.summary <- function(rlist, level = 0.05, digits = 3)
-{
-	
+h.summary <- function(rlist, level = 0.05, digits = 3){
+
 	frlist <- list()
 	nmlist <- NULL
 	
@@ -229,117 +228,168 @@ h.summary <- function(rlist, level = 0.05, digits = 3)
 }
 
 
-h.forest <- function(k, snp.var, t.lab, rlist, res, side, level, p.adj, digits)
-{
+h.forest <- function(k, snp.var, t.lab, rlist, res, side, level, p.adj, digits){
+
 	k <- length(t.lab)
+	ind <- c(NA, NA, NA)
 	
 	res0 <- rlist[[1]]
 	res1 <- rlist[[2]]
 	res2 <- rlist[[3]]
-	
-	i0 <- pmatch(snp.var, names(res0$pval))
-	i1 <- pmatch(snp.var, names(res1$pval))
-	i2 <- pmatch(snp.var, names(res2$pval))
-	
-	CI0 <- getCI(res0$beta[snp.var], res0$sd[snp.var], level = level)
-	CI1 <- getCI(res1$beta[snp.var], res1$sd[snp.var], level = level)	
-	if(side == 1)
+
+	pos <- (res$beta > 0 )
+	neg <- (res$beta < 0 )
+	null <- rep(FALSE, k)
+	for(i in seq_len(3))
 	{
-		CI2 <- getCI(res2$beta[snp.var], res2$sd[snp.var], level = level)
-	} else
-	{
-		CI2.1 <- getCI(res2$beta.1[snp.var], res2$sd.1[snp.var], level = level)
-		CI2.2 <- getCI(res2$beta.2[snp.var], res2$sd.2[snp.var], level = level)
+		if(!is.null(rlist[[i]])) ind[i] <- pmatch(snp.var, names((rlist[[i]])$pval))
 	}
 
-	CI0.str <- paste("(", round(CI0[1, 2], digits=digits), ", ", 
-                          round(CI0[1, 3], digits=digits), ")", sep="")
-	CI1.str <- paste("(", round(CI1[1, 2], digits=digits), ", ", 
-                          round(CI1[1, 3], digits=digits), ")", sep="")
-	if(side == 1)
+	if(!is.null(res2))
 	{
-		CI2.str <- paste("(", round(CI2[1, 2], digits=digits), ", ", 
-                              round(CI2[1, 3], digits=digits), ")", sep="")
-	} else
-	{
-		CI2.1.str <- paste("(", round(CI2.1[1, 2], digits=digits), ", ", 
-                                round(CI2.1[1, 3], digits=digits), ")", sep="")
-		CI2.2.str <- paste("(", round(CI2.2[1, 2], digits=digits), ", ", 
-                                round(CI2.2[1, 3], digits=digits), ")", sep="")
+		if(side == 1)
+		{
+			pos <- (pos & res2$pheno[ind[3], ])
+			neg <- (neg & res2$pheno[ind[3], ])
+			null <- (null | !res2$pheno[ind[3], ])
+		} else
+		{
+			pos <- (pos & res2$pheno.1[ind[3], ])
+			neg <- (neg & res2$pheno.2[ind[3], ])
+			null <- (null | (!res2$pheno.1[ind[3], ] & !res2$pheno.2[ind[3], ]))		
+		}
 	}
 	
 	CI <- getCI(res$beta, res$sd, level = level)
+
 	CI.str <- apply(data.matrix(CI), 1, function(x)
 					{
 					paste("(", round(x[2], digits=digits), ", ", 
-                               round(x[3], digits=digits), ")", sep="")
+	                               round(x[3], digits=digits), ")", sep="")
 					})
-	if(side == 1)
-	{
-		pos <- (res$beta > 0 & res2$pheno[i2, ])
-		neg <- (res$beta < 0 & res2$pheno[i2, ])
-		null <- (!res2$pheno[i2, ])
-	}
-	else
-	{
-		pos <- (res$beta > 0 & res2$pheno.1[i2, ])
-		neg <- (res$beta < 0 & res2$pheno.2[i2, ])
-		null <- (!res2$pheno.1[i2, ] & !res2$pheno.2[i2, ])
-	}
-
-	mid <- c(NA, NA, CI$mid[neg], NA, NA, CI$mid[null]
-			 , NA, NA, CI$mid[pos], NA, CI0$mid[1], CI1$mid[1])
-
-	if(side == 1) mid <- c(mid, CI2$mid[1])
-	else mid <- c(mid, NA, CI2.1$mid[1], CI2.2$mid[1])
-
-	low <- c(NA, NA, CI$low[neg], NA, NA, CI$low[null]
-			 , NA, NA, CI$low[pos], NA, CI0$low[1], CI1$low[1])
-	
-	if(side == 1) low <- c(low, CI2$low[1])
-	else low <- c(low, NA, CI2.1$low[1], CI2.2$low[1])
-	
-	high <- c(NA, NA, CI$high[neg], NA, NA, CI$high[null]
-			 , NA, NA, CI$high[pos], NA, CI0$high[1], CI1$high[1])
-	
-	if(side == 1) high <- c(high, CI2$high[1])
-	else high <- c(high, NA, CI2.1$high[1], CI2.2$high[1])
-
 	
 	if(p.adj) res$pval <- pmin(res$pval * k, 1)
+	pval.str <- format(res$pval, digits=2, scientific=TRUE)
+	pval.str[is.na(res$pval)] <- NA_character_
 	
-	pvalues <- c(NA, NA, res$pval[neg], NA, NA, res$pval[null], NA, NA, res$pval[pos], NA, res0$pval[i0]
-				 , res1$pval[i1], res2$pval[i2])
 	
-	if(side == 2) pvalues <- c(pvalues, res2$pval.1[i2], res2$pval.2[i2])
+					
+	nrow <- 1 
+	nrow <- nrow + (if(any(neg)) (sum(neg) + 2) else 0) 
+	nrow <- nrow + (if(any(null)) (sum(null) + 2) else 0)
+	nrow <- nrow + (if(any(pos)) (sum(pos) + 2) else 0)
+	nrow <- nrow + 1
+	if(!is.null(res0)) nrow <- nrow + 1
+	if(!is.null(res1)) nrow <- nrow + 1
+	if(!is.null(res2) && side==1) nrow <- nrow + 1
+	if(!is.null(res2) && side==2) nrow <- nrow + 3 
 	
-	pval.str <- format(pvalues, digits=2, scientific=TRUE)
-	pval.str[is.na(pvalues)] <- NA_character_
+	
+	mdat <- matrix(NA, nrow, 4)
+	colnames(mdat) <- c("Mid", "Low", "High", "Pvalue")
+	tab <- matrix(as.character(NA), nrow, 7)
+	is.summary <- rep(FALSE, nrow)
+	is.summary[1] <- TRUE
+	colnames(tab) <- c("Phenotype", "OR", "GAP1", "CIstr", "GAP2", "PVALstr", "GAP3")
+	tab[, "GAP1"] <- "    "
+	tab[, "GAP2"] <- "    "
+	tab[, "GAP3"] <- "  "
+	
+	dir <- list(neg, null, pos)
+	names(dir) <- c("Negative", "Null", "Positive")
+	cur <- 1
+	for(i in seq_len(3))
+	{
+		clen <- 0
+		if(any(dir[[i]]))
+		{
+			len <- sum(dir[[i]])
+			v <- seq_len(len)
+			mdat[cur + clen + 2 + v,"Mid"] <- log(CI$mid[dir[[i]]])
+			mdat[cur + clen + 2 + v,"Low"] <- log(CI$low[dir[[i]]])
+			mdat[cur + clen + 2 + v,"High"] <- log(CI$high[dir[[i]]])
+			mdat[cur + clen + 2 + v,"Pvalue"] <- res$pval[dir[[i]]]
 
-	pheno.col <- c("Phenotype", NA, "Negative", t.lab[neg], NA, "Null", t.lab[null], NA, "Positive"
-				   , t.lab[pos], NA, names(rlist))
-	if(side == 2) pheno.col <- c(pheno.col, "    Positive", "    Negative")
+			tab[cur + clen + 2,"Phenotype"] <- names(dir)[i]
+			tab[cur + clen + 2 + v,"Phenotype"] <- t.lab[dir[[i]]]
+			tab[cur + clen + 2 + v,"OR"] <- round(CI$mid[dir[[i]]], digits=digits)
+			tab[cur + clen + 2 + v,"CIstr"] <- CI.str[dir[[i]]]
+			tab[cur + clen + 2 + v,"PVALstr"] <- pval.str[dir[[i]]]
+
+			is.summary[cur + clen + 2] <- TRUE
+
+			clen <- clen + len + 2
+		}
+		cur <- cur + clen
+	}
+	cur <- cur + 1
 	
-	CI.vec <- c(NA, NA, CI.str[neg], NA
-				, NA, CI.str[null], NA, NA, CI.str[pos], NA, CI0.str, CI1.str)
+	for(i in seq_len(3))
+	{
+		res.i <- rlist[[i]]
+		if(!is.null(res.i))
+		{
+			if(i != 3 || side !=2)
+			{
+				CI.i <- getCI(res.i$beta[snp.var], res.i$sd[snp.var], level = level)
+				CI.i.str <- paste("(", round(CI.i[1, 2], digits=digits), ", "
+					, round(CI.i[1, 3], digits=digits), ")", sep="")
+				pval.i <- res.i$pval[ind[i]]
+				pval.i.str <- if(is.na(pval.i)) NA_character_ else format(pval.i, digits=2, scientific=TRUE)
 
-	if(side == 1) CI.vec <- c(CI.vec, CI2.str)
-	else CI.vec <- c(CI.vec, c(NA, CI2.1.str, CI2.1.str))
+				mdat[cur + 1, "Mid"] <- log(CI.i$mid[1])
+				mdat[cur + 1, "Low"] <- log(CI.i$low[1])
+				mdat[cur + 1, "High"] <- log(CI.i$high[1])
+				mdat[cur + 1, "Pvalue"] <- pval.i
 
-	tabletext <- cbind(pheno.col, c("OR", round(mid, digits=digits))
-					   , rep("", length(mid) + 1)
-					   , c(paste(round(1 - level, digits=3), "% CI", sep=""), CI.vec)
-					   , rep("", length(mid) + 1)
-					   , c(paste("P-value", if(p.adj) "(Adj)" else "(Unadj)"), pval.str)
-					   , rep("", length(mid) + 1)					   
-					   )
+				tab[cur + 1,"Phenotype"] <- names(rlist)[i]
+				tab[cur + 1, "OR"] <- round(CI.i$mid[1], digits=digits)
+				tab[cur + 1,"CIstr"] <- CI.i.str
+				tab[cur + 1,"PVALstr"] <- pval.i.str
+
+				is.summary[cur + 1] <- TRUE
+
+				cur <- cur + 1
+			} else
+			{
+				CI2.1 <- getCI(res.i$beta.1[snp.var], res.i$sd.1[snp.var], level = level)
+				CI2.2 <- getCI(res.i$beta.2[snp.var], res.i$sd.2[snp.var], level = level)
+				CI2.1.str <- paste("(", round(CI2.1[1, 2], digits=digits), ", ", 
+			                        round(CI2.1[1, 3], digits=digits), ")", sep="")
+				CI2.2.str <- paste("(", round(CI2.2[1, 2], digits=digits), ", ", 
+		                        round(CI2.2[1, 3], digits=digits), ")", sep="")
+				pval.i <- res.i$pval[ind[i]]
+				pval.i.str <- if(is.na(pval.i)) NA_character_ else format(pval.i, digits=2, scientific=TRUE)
+				pval.i.1 <- res.i$pval.1[ind[i]]
+				pval.i.2 <- res.i$pval.2[ind[i]]
+				pval.i.1.str <- if(is.na(pval.i.1)) NA_character_ else format(pval.i.1, digits=2, scientific=TRUE)
+				pval.i.2.str <- if(is.na(pval.i.2)) NA_character_ else format(pval.i.2, digits=2, scientific=TRUE)
+
+				v <- seq_len(3)
+				mdat[cur + v, "Mid"] <- log(c(NA, CI2.1$mid[1], CI2.2$mid[1]))
+				mdat[cur + v, "Low"] <- log(c(NA, CI2.1$low[1], CI2.2$low[1]))
+				mdat[cur + v, "High"] <- log(c(NA, CI2.1$high[1], CI2.2$high[1]))
+				mdat[cur + v, "Pvalue"] <- c(res.i$pval[ind[i]], res.i$pval.1[ind[i]], res.i$pval.2[ind[i]])
+
+				tab[cur + v,"Phenotype"] <- c(names(rlist)[3], "    Positive", "    Negative")
+				tab[cur + v, "OR"] <- round(c(NA, CI2.1$mid[1], CI2.2$mid[1]), digits=digits)
+				tab[cur + v,"CIstr"] <- c(NA, CI2.1.str, CI2.1.str)
+				tab[cur + v,"PVALstr"] <- c(pval.i.str, pval.i.1.str, pval.i.2.str)
+				
+				is.summary[cur + v] <- c(TRUE, TRUE, TRUE)
+				
+				cur <- cur + 3
+			}
+		}
+	}
+	hdr <- c("Phenotype", "OR", "", paste(round(100*(1 - level), digits=1), "% CI", sep="")
+			, "", paste("P-value", if(p.adj) "(Adj)" else "(Unadj)"), "")
+	tab[1,] <- hdr
+
 
 #	par(omi = c(1, 0.05, 0.5, 0.05))
-	is.summary <-  c(rep(TRUE, 3), rep(FALSE, sum(neg)), FALSE, TRUE, rep(FALSE, sum(null))
-					 , FALSE, TRUE, rep(FALSE, sum(pos)), FALSE, rep(TRUE, 2))
-	if(side == 1) is.summary <- c(is.summary, TRUE)
-	if(side == 2) is.summary <- c(is.summary, c(TRUE, TRUE, TRUE))
-	rmeta::forestplot(tabletext, c(NA, log(mid)), c(NA, log(low)), c(NA, log(high)), zero=0, is.summary=is.summary
+
+	rmeta::forestplot(tab, mdat[, "Mid"], mdat[, "Low"], mdat[, "High"], zero=0, is.summary=is.summary
 				, clip=c(log(1/5),log(5)), xlog=TRUE, col=meta.colors(box="royalblue", lines="darkblue", summary="royalblue"))
 
 	title(main=snp.var)
@@ -376,13 +426,13 @@ meta.se <- function(rmat, sigma, subset=NULL) {
 } # END: meta.se
 
 # Top-level function to make a forest plot
-h.forestPlot <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2) {
+h.forestPlot <- function(rlist, snp.var, level=0.05, p.adj=TRUE, digits=2, calc.miss=FALSE) {
 
   which <- rlist[["which", exact=TRUE]]
   if (which == "h.types") {
-    types.forest(rlist, snp.var, level=level, p.adj=p.adj, digits=digits)
+    types.forest(rlist, snp.var, level=level, p.adj=p.adj, digits=digits, calc.miss=calc.miss)
   } else if (which == "h.traits") {
-    traits.forest(rlist, snp.var, level=level, p.adj=p.adj, digits=digits)
+    traits.forest(rlist, snp.var, level=level, p.adj=p.adj, digits=digits, calc.miss=calc.miss)
   } else {
     stop("rlist is not a valid return list from h.types() or h.traits()")
   }
@@ -462,5 +512,6 @@ convertPosToVars <- function(data, pos) {
   ret <- colnames(data)[pos]
   ret
 
-} # END: convertPosToVars 
+} # END: convertPosToVars
+ 
 
